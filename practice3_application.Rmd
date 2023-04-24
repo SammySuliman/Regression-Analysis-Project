@@ -1,0 +1,190 @@
+---
+title: "PSTAT 126 Practice 3 - Application"
+author: "Saad Mouti"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+# knit options
+knitr::opts_chunk$set(echo = F,
+                      results = 'markup',
+                      fig.width = 4,
+                      fig.height = 3,
+                      fig.align = 'center',
+                      message = F,
+                      warning = F)
+
+# packages
+library(tidyverse)
+library(modelr)
+library(faraway)
+```
+
+## Application
+
+This part comprises questions that involve writing R codes.
+
+#### A1. Standard errors
+
+In practice 2 you considered the following model of the Galapagos islands species data:
+$$\text{proportion}_i = \beta_0 + \beta_1 \log(\text{area}_i) + \varepsilon_i$$
+This model is fitted for you in the markdown file.
+```{r}
+# calculate proportion
+gala <- gala %>% mutate(prop_endemic = Endemics/Species)
+
+# fit model
+fit <- lm(prop_endemic ~ log(Area), data = gala)
+```
+
+i. Compute an unbiased estimate for $\text{Var}\hat{\beta}_1$. State the calculation you performed, why it is unbiased, and give the result out to six decimal places, but do not show any codes.
+```{r, echo=FALSE}
+# solution
+gala <- gala %>% mutate(xi_xi = log(Area)^2)
+x_bar <- mean(log(gala$Area))
+SS_res <- sum(residuals(fit)^2)
+s_xx <- sum(gala$xi_xi) - dim(gala)[1]*x_bar^2
+sigma_sq_hat <- summary(fit)$sigma^2
+var_beta_1_hat <- sigma_sq_hat / (s_xx) 
+print(var_beta_1_hat)
+```
+
+I used the formula for variance of $\hat\beta_1$ a simple linear model, $var(\hat\beta_1) = \frac{\sigma^2}{S_{xx}}$, replacing $\sigma^2$ with its unbiased estimate $\hat\sigma^2 = \frac{1}{n-2}\sum(y_i - \hat{y_i})^2$, so that $$\hat{Var}\hat\beta_1 = \frac{\hat\sigma^2}{S_{xx}} = 0.000125$$.
+
+ii. Based on your answer in (i), give an estimated standard deviation for $\hat{\beta}_1$ (this is known as a *standard error* for $\hat{\beta}_1$). Interpret the estimate in 1-2 sentences. State the calculation you performed and give the result out to six decimal places, but do not show any codes.
+
+```{r, echo=FALSE}
+# calculation
+gala <- gala %>% mutate(xi_xi = log(Area)^2)
+x_bar <- mean(log(gala$Area))
+SS_res <- sum(residuals(fit)^2)
+s_xx <- sum(gala$xi_xi) - dim(gala)[1]*x_bar^2
+sigma_hat <- sqrt(summary(fit)$sigma^2)
+std_beta_1_hat <- sigma_hat / sqrt(s_xx) 
+print(std_beta_1_hat)
+```
+
+I used the formula for standard deviation of $\hat\beta_1$ a simple linear model, $var(\hat\beta_1) = \frac{\sigma}{\sqrt{S_{xx}}}$, replacing $\sigma$ with its estimate $\hat\sigma = \frac{1}{n-2}\sum(y_i - \hat{y_i})^2$, so that $$\hat{Std. dev.}\hat\beta_1 = \frac{\hat\sigma}{\sqrt{S_{xx}}} = 0.01119$$.
+
+iii. Interpret the estimate $\hat{\beta}_1$ in context. How much does the expected proportion change with island area according to the fitted model? Along with your answer, show a line of code giving the calculation you performed, but do not show the R output. (*Hint*: consider what happens to the expected proportion if $\text{area} \rightarrow 2\times\text{area}$.)
+
+```{r, echo=TRUE, results='hide'}
+# calculation
+Y_1 <- predict(fit, gala)[1]
+Y_2 <- predict(fit, gala*2)[1] 
+print(Y_2 - Y_1)
+```
+
+If the area of an island doubles, we would expect the proportion of endemic species to decrease by 2.63% by our model
+
+iv. Based on your standard error, how much is your answer in (iii) estimated to vary from sample to sample? Show a line of code giving the calculation you performed to obtain your answer, but do not show the output. State your answer in a sentence.
+```{r, echo=TRUE, results='hide'}
+fit$residuals
+```
+
+*Type your answer here (replacing this text)*
+
+v. Given your answers in (iii) - (iv), do you think that the specific estimate for the association between area and endemic species you obtained from this dataset is a reliable one? Answer in 1-2 sentences.
+
+*Type your answer here (replacing this text)*
+
+vi. How well does the model fit? Answer in 1-2 sentences, and explain how you made your assessment. Provide quantitative support for your answer, but do not show any codes.
+
+*Type your answer here (replacing this text)*
+
+vii. Would you trust predictions from this model? Why or why not?
+
+*Type your answer here (replacing this text)*
+
+\newpage
+#### A2. Simulation
+
+Are the standard errors for $\hat{\beta}$ still reliable if the constant variance assumption doesn't hold? In this problem you'll explore this question through simulation. It may help to refer to Lab 3 throughout for code examples.
+
+The codes below (in the markdown file) provide you with a basic set-up for the simulation. The plot shows one simulated dataset, with the true relationship indicated in red.
+```{r}
+# for reproducibility
+set.seed(101021)
+
+# fix x values
+samp_size <- 100
+x_vals <- runif(samp_size, min = -5, max = 5)
+
+# function for mean y
+fx <- function(x){1 + 2*x}
+
+# function to generate response
+sample_fn <- function(i){
+  set.seed(i)
+  tibble(x = x_vals) %>%
+    mutate(y = fx(x) + rnorm(samp_size, mean = 0, sd = 1 + x^2/2))
+}
+
+# example dataset
+sample_fn(1) %>%
+  ggplot(aes(x = x, y = y)) +
+  geom_point() +
+  geom_function(fun = fx, color = 'red') 
+```
+
+i. Write the model with the values of the true regression coefficients in the simulation.
+
+$$Y = 2X +\epsilon$$
+$$\beta_0 = 1, \beta_1 = 2$$
+
+ii. What is $\text{Var}\varepsilon_i$ in the simulation?
+
+$$\sigma^2 = 1 + \frac{x^2}{2}$$
+
+iii. Write codes to perform the following steps: generate 1000 simulated datasets; fit a simple linear model to each dataset; and extract the parameter estimates. Follow the example in Lab 3; show your codes only.
+
+```{r}
+# for reproducibility
+set.seed(10821)
+
+# number of simulations
+num_datasets <- 1000
+
+# simulate collection of num_samp datasets 
+sim_datasets <- tibble(samp = 1:num_datasets) %>%
+  mutate(data = map(samp, sample_fn)) 
+
+# preview
+sim_datasets %>% head(3)
+
+```
+
+iv. What is the average estimate for the variance parameter across the 1000 simulations? Show both your code and the result.
+```{r}
+# solution
+
+```
+
+v. What would the average estimate of $\text{Var}\hat{\beta}$ be across the 1000 simulations using the usual estimator $\hat{\sigma}^2\left(\mathbf{x'x}\right)^{-1}$? Show both your code and the result.
+```{r}
+# the usual variance estimate
+
+```
+
+vi. What is the sample variance-covariance matrix of the estimates $\hat{\beta}$ across the 1000 simulations? In other words, what amount of variation and covariation was actually observed in simulation?
+```{r}
+# observed variance-covariance in simulation
+
+```
+vii. Is the usual standard error for $\hat{\beta}_1$ an underestimate, accurate, or an overestimate relative to what was observed in simulation?
+
+*Type your answer here (replacing this text)*
+
+viii. Using your answer to T2 and the simulation set-up, compute the theoretical variance of $\hat{\beta}$. Does the result you observed in the simulation match this? Show your codes and the variance-covariance matrix as output.
+```{r, echo = T}
+# solution
+
+```
+
+\newpage
+## Code appendix
+
+```{r appendix, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```

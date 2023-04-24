@@ -1,0 +1,137 @@
+---
+title: "PSTAT 126 Practice 2: Application"
+author: "Saad Mouti"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+# knit options
+knitr::opts_chunk$set(echo = F,
+                      results = 'markup',
+                      fig.width = 4,
+                      fig.height = 3,
+                      fig.align = 'center',
+                      message = F,
+                      warning = F)
+
+# packages
+library(tidyverse)
+library(faraway)
+```
+
+### Instructions
+
+This practice contains a series of applied questions. They are mostly, but not exclusively, based on lecture and lab material, and may require you to do a little independent thinking or investigation here and there.
+
+Please use this .Rmd file as a template for your practice.
+
+\newpage
+## Application
+
+```{r}
+gala <- gala %>% mutate(prop_endemic = Endemics/Species)
+```
+
+This part comprises questions that involve writing R codes. Please write your codes and answers in the locations indicated and be sure to follow the instructions regarding whether to show codes and output.
+
+#### A1. Interpreting R output
+
+The R summary for the model fit in C1(v) to the Galapagos islands data is shown below:
+```{r}
+# fit model
+fit <- lm(prop_endemic ~ log(Area), data = gala)
+
+# return fit summary
+summary(fit)
+```
+
+i. What model was fit? Write the model in observation-indexed form. Use $\text{proportion}_i$ and $\log(\text{Area})_i$ in place of $Y_i$ and $x_i$, as was done in lecture. Please use math mode markup (see lab 1).
+
+$$\text{proportion}_i = \beta_0 + \beta_1\log(\text{Area}_i) + \epsilon_i$$
+
+ii. Identify the coefficient and error variance (not error standard deviation) estimates. Please use math mode markup (see Lab 1).
+
+```{r}
+coef(fit)
+
+sigmasq_hat <- summary(fit)$sigma^2
+sigmasq_hat
+
+
+```
+$$Intercept (\hat\beta_0) = 0.54013504$$
+$$log(Area) (\hat\beta_1) = -0.03793043$$
+$$\sigma^2 = 0.0445263$$
+#### A2. Correlates of sleep in mammals
+
+The `mammalsleep` dataset in the `faraway` package contains data from a 1976 study on correlates of sleep in mammals. The first few rows of the data are shown below:
+```{r}
+# preview data
+head(mammalsleep)
+```
+
+i. The brain-to-body weight ratio was thought to be a good proxy measurement for animal intelligence; while this interpretation is fraught, the ratio is still an interesting correlate of physiological, metabolic, and other characteristics. Add the brain-to-body ratio as a new variable to the dataset named `bb_ratio`. Show only your code.
+
+```{r, echo=T, results='hold'}
+# solution
+mammalsleep <- mammalsleep %>%
+  mutate(bb_ratio = brain / body)
+```
+
+ii. Make a scatterplot of the total hours of sleep per day against the brain body ratio. Show the plot, but not your code. Does it seem as if there is any relationship between the two quantities? If so, does it seem strong or weak?
+
+```{r}
+# solution
+p <- ggplot(mammalsleep, aes(x=bb_ratio, y=sleep)) + geom_point()
+p
+
+# There appears to be a weak positive relationship between increased brain-body ration and more hours of sleep.
+```
+
+
+iii. Make a scatterplot of hours of sleep per day against maximum lifespan. Show the plot, but not your code. Does it seem as if there is any relationship? If so, does it seem strong or weak?
+
+```{r}
+# solution
+ggplot(mammalsleep, aes(x=lifespan, y=sleep)) + geom_point()
+
+# There appears to be a strong negative relationship between number of hours of sleep and maximum lifespan.
+```
+
+iv. Fit a model with the brain body ratio and maximum lifespan as predictors of hours of sleep per day. Show the fit summary.
+
+```{r}
+# solution
+sleep_model <- lm(sleep ~ bb_ratio + lifespan, data=mammalsleep)
+summary(sleep_model)
+```
+
+v. According to the fitted model, do the average hours of sleep per day increase or decrease with lifespan? 
+
+Decrease
+
+vi. If the estimates are to be believed, how much more or less would an animal sleep per day if they lived an additional ten years? Show either code or a written sketch of the calculation you performed.
+
+```{r}
+man_df <- mammalsleep['Man',]
+y_1 <- predict(sleep_model, newdata=man_df)
+y_2 <- predict(sleep_model, newdata=mutate(man_df, lifespan=lifespan+10))
+print(y_2 - y_1)
+```
+
+
+vii. According to the fitted model, how much does an average human sleep per day? Show either code or a written sketch of the calculation you performed.
+
+```{r}
+man_df <- mammalsleep['Man',]
+predict(sleep_model, newdata = man_df)
+```
+
+
+
+
+\newpage
+## Code appendix
+
+```{r appendix, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```

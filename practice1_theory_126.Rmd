@@ -1,0 +1,270 @@
+---
+title: "practice1_126"
+output:
+  html_document: default
+  pdf_document: default
+date: "2023-04-04"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Practice 1
+
+### Concepts
+
+The questions in this section are qualitative questions to help you check your understanding of key concepts introduced in lecture. They are numbered 'C1', 'C2', etc., and delineated by headers; please type your answers below the corresponding 'Answer' header.
+
+### C1
+
+Definitions: Let $Y$ be a random variable and $x$ be a fixed variable. i. What is a regression model for $Y$ ? ii. Clarify whether each of the following is a regression model.
+
+(a) $E[Y] = f(x)$ for some known real-valued function $f$.
+
+(b) $g(E[Y]) = β + \alpha \cdot x log(x)$ for some known real-valued function $g$.
+
+(c) $Var(Y) = e^{-\alpha x}$
+
+```{=html}
+<!-- -->
+```
+iii. What is a linear regression model for $Y$ ?
+iv. Clarify whether each of the following is a linear regression model.
+
+```{=html}
+<!-- -->
+```
+(a) $E[Y] = β_0 + β_1x$
+(b) $(E[Y])^{\frac{1}{c}} = β_0 + β_1x$ for known constant c
+(c) $E[Y] = β_0 + β_1x + β_2x^2 + β_3x^3$
+(d) $log(E[Y]) = β_0 + β_1x + β_2x^2 + β_3x^3$
+(e) $log(E[Y]) = β_0 + β_1x^{α_1} + β_2x^{α_2} + β_3x^{α_3}$
+(f) $E[Y] = e^{xβ}$
+(g) $E[Y] = μ$
+
+### Answers:
+
+i.) A regression model expresses the mean of a random variable as a function of measurements of the random variable.
+
+ii.)
+
+```         
+a.) Yes  
+
+b.) Yes  
+
+c.) No
+```
+
+iii.) A linear regression model is a regression model that is linear in its parameters.
+
+iv.)
+
+```         
+a.) Yes  
+
+b.) Yes  
+
+c.) Yes  
+
+d.) Yes
+
+e.) No
+
+f.) Yes
+
+g.) Yes
+```
+
+### C2
+
+Inference or prediction? Clarify whether each of the following objectives is inferential or predictive.
+
+i.  Determine whether the tensile strength of a carbon-fiber bicycle frame differs between frame models.
+
+ii. Estimate the chances of survival at six months for a lymphoma patient given their clinical presentation, medical history, and lifestyle.
+
+iii. Estimate the association between dietary factors and survival times of lymphoma patients.
+
+### Answers
+
+i.) inferential
+
+ii.) predictive
+
+iii.) inferential
+
+## Theory
+
+This section contains mathematical questions. You can write your answers on paper and append a scanned image of your work to your assignment, or you can practice the math mode syntax and type up your answers in the R Markdown file. (You'll be awarded one extra point for typset answers.) You do not necessarily need to show every single step of your work, but you should show enough so that it is clear how you obtained your answer.
+
+### T1. Properties of expectation
+
+Let $Y, Y_1, Y_2$ be random variables and $a, b, c$ be constants. Show that the following statements are true.
+
+i.  Linearity of expectation 1: $E[aY + b] = aE[Y] + b$. (Assume Y is a continuous random variable; you do not need to consider the discrete case.)
+
+ii. Linearity of expectation 2: $E[aY_1 + bY_2 + c] = aE[Y_1] + bE[Y_2] + c$. (Assume Y is a continuous random variable; you do not need to consider the discrete case.)
+
+iii. Variance identity: $VarY = E[Y^2] − (E[Y ])^2$.
+
+iv. Variance of a linear function: $Var(aY + b) = a^2Var(Y)$.
+
+v.  Variance of a linear combination: $Var(aY_1 + bY_2 + c) = a^2Var(Y_1) + b^2Var(Y_2) + 2abCov(Y1, Y2)$.
+
+### Answers
+
+i.) $E[Y] =\int_\mathbb{R} y \cdot f_y \cdot dy$ by definition of expectation of continuous random variables.
+
+$E[aY+b] = \int_\mathbb{R} (ay+b) \cdot f_y \cdot dy$
+
+$E[aY+b] = a \cdot \int_\mathbb{R} y \cdot f_y \cdot dy$
+
+$E[aY+b] = aE[Y]+b$    $\blacksquare$
+
+ii.) $E[aY_1 + bY_2 + c] = \int\int_\mathbb{R} (ay_1+by_2+c) \cdot f(y_1,y_2) \cdot dy_1dy_2$
+
+$E[aY_1 + bY_2 + c] = a\int\int_\mathbb{R} y_1 \cdot f(y_1, y_2) \cdot dy_2dy_1 + b\int\int_\mathbb{R} y_2 \cdot f(y_1, y_2) \cdot dy_1dy_2 + c \int\int_\mathbb{R} f(y_1, y_2) \cdot dy_1dy_2$
+
+$E[aY_1 + bY_2 + c] = a\int_\mathbb{R}y_1 \cdot f_{y_1} \cdot dy_1 + b\int_\mathbb{R}y_2 \cdot f_{y_2} \cdot dy_2 + c$
+
+$E[aY_1 + bY_2 + c] = aE[Y_1] + bE[Y_2] + c$ $\blacksquare$
+
+iii.) $Var[Y] = E[(Y - E[Y])^2]$
+
+$Var[Y] = E[Y^2-2YE[Y] + (E[Y])^2]$
+
+$Var[Y] = E[Y^2] - 2(E[Y])^2 + (E[Y])^2$
+
+$Var[Y] = E[Y^2] - E[Y]^2$ $\blacksquare$
+
+iv.) $Var[aY+b] = E[(aY+b)^2] - (E[aY+b])^2$
+
+$Var[aY+b] = E[a^2Y^2 + 2abY + b^2] - (E[aY+b])^2$
+
+$Var[aY+b] = a^2E[Y^2] + 2abE[Y] + b^2 - (aE[Y] + b)^2$
+
+$Var[aY+b] = a^2E[Y^2] + 2abE[Y] + b^2 - a^2(E[Y])^2 - 2abE[Y] - b^2$
+
+$Var[aY+b] = a^2(E[Y^2] - (E[Y])^2)$ 
+
+$Var[aY+b] = a^2Var[Y]$ $\blacksquare$
+
+v.) $Var[aY_1+bY_2+c] = E[(aY_1+bY_2+c)^2] - (E[aY_1+bY_2+c])^2$
+
+$Var[aY_1+bY_2+c] = E[a^2Y_1^2+b^2Y_2^2+c^2+2abY_1Y_2+2acY_1+2bcY_2] - (E[aY_1+bY_2+c])^2$
+
+$Var[aY_1+bY_2+c] = a^2E[Y_1^2] + b^2E[Y_2^2] + 2abE[Y_1Y_2] + 2acE[Y_1] + 2bcE[Y_2] + c^2 - a^2(E[Y_1])^2 - 2abE[Y_1]E[Y_2] - 2acE[Y_1] - b^2(E[Y_2])^2 - 2bcE[Y_2] - c^2$
+
+$Var[aY_1+bY_2+c] = a^2(E[Y_1^2] - (E[Y_1])^2) + b^2(E[Y_2^2] - (E[Y_2])^2) +2ab(E[Y_1Y_2] - E[Y_1]E[Y_2])$
+
+$Var[aY_1+bY_2+c] = a^2Var[Y_1] + b^2Var[Y_2] + 2abCov[Y_1, Y_2]$ $\blacksquare$
+
+### T2. Gaussian distribution
+
+Verify the linearity properties of the Gaussian distribution mentioned in
+lecture. (Hint: use the moment generating function.)
+
+i. Let $Y ∼ N(μ, σ^2)$; show that $aY + b ∼ N(aμ + b, a^2σ^2)$.
+
+ii. Let $Y_1 ∼ N(μ_1, σ_1^2)$ and $Y_2 ∼ N (μ2, σ_2^2)$ and $Y_1 ⊥ Y_2$; show that $aY_1 + bY_2 + c ∼ N(aμ_1 + bμ_2 + c, a^2σ_1^2 + b^2σ_2^2)$
+
+### Answers
+
+i.) We know $M_{Y}(t) = e^{t\mu + \frac{1}{2}\sigma^2t^2}$
+
+$M_U(t) = E[e^{t(aY+b)}] = E[e^{a(tY)}e^{tb}]$
+
+$M_U(t) = e^{tb}E[e^{Y(at)}]$
+
+$M_U(t) = e^{tb}M_{Y}(at)$
+
+$M_U(t) = e^{tb}e^{{\mu}(at)+\frac{1}{2}\sigma^2(a^2t^2)}$
+
+$U \sim \mathcal{N}(a\mu+b, a^2\sigma^2)$ $\blacksquare$
+
+ii.) $M_U(t) = E[e^{t(aY_1+bY_2+c)}] = E[e^{Y_1(at)}e^{Y_2(bt)}e^{ct}]$
+
+$M_U(t) = e^{ct}E[e^{Y_1(at)}e^{Y_2(bt)}]$
+
+$M_U(t) = E[e^{Y_1(at)}]E[e^{Y_2(bt)}]$ by independence of $Y_1, Y_2$
+
+$M_U(t) = e^{ct}M_{Y_1}(at)M_{Y_2}(bt)$
+
+$M_U(t) = e^{ct}e^{\mu_1(at)+\frac{1}{2}\sigma_1^2(bt)^2}$
+
+$M_U(t) = e^{t(a\mu_1+b\mu_2+c) + t^2(\frac{1}{2}a^2\sigma_1^2+\frac{1}{2}b^2\sigma_2^2)}$
+
+$U \sim \mathcal{N}(a\mu_1+b\mu_2+c, a^2\sigma_1^2+b^2\sigma_2^2)$
+$\blacksquare$
+
+### T3. Vector operations
+
+Let: $a = \begin{pmatrix} 1 \\ 1 \\ 2 \end{pmatrix}, b = \begin{pmatrix} 2 \\ 2 \\ 2 \end{pmatrix}, c = \begin{pmatrix} 1 \\ 2 \\ 3 \\ 4 \end{pmatrix}, d = \begin{pmatrix} 2 \\ 3 \\ 3 \\ 2 \end{pmatrix}$
+For each of the following operations, say whether the operation is possible, and if so, carry it out by hand.
+
+i. $ab$
+
+ii. $a^Tb$
+
+iii. $a + c$
+
+iv. $a^Tc$
+
+v. $c^Td$
+
+vi. $c + d$
+
+vii. $aa^T$ (Hint: this is known as an ‘outer product’ (Google-able).)
+
+### Answers
+
+i.) Not possible
+
+ii.) Possible, $(1 \times 2) + (1 \times 2) + (2 \times 2) = 8$
+
+iii.) Not possible
+
+iv.) Not possible
+
+v.) Possible, $(2 \times 1) + (3 \times 2) + (3 \times 3) + (2 \times 4) = 25$
+
+vi.) Possible, $\begin{pmatrix} 1+2 \\ 3+2 \\ 3+3 \\ 2+4 \end{pmatrix} = \begin{pmatrix} 3 \\ 5 \\ 6 \\ 6 \end{pmatrix}$
+
+vii.) Possible, $\begin{pmatrix} 1 \cdot 1 & 1 \cdot 1 & 1 \cdot 2 \\ 1 \cdot 1 & 1 \cdot 1 & 1 \cdot 2 \\ 2 \cdot 1 & 2 \cdot 1 & 2 \cdot 2 \end{pmatrix} = \begin{pmatrix} 1 & 1 & 2 \\ 1 & 1 & 2 \\ 2 & 2 & 4 \end{pmatrix}$
+
+### T4. Matrix product
+
+Let $a = \begin{pmatrix} 1 & 2 & 1 \\ 2 & 3 & 2 \\ 1 & 1 & 2 \end{pmatrix}$ and $b = \begin{pmatrix} -4 & 3 & -1 \\ 2 & -1 & 0 \\ 1 & -1 & 1 \end{pmatrix}$. Compute the matrix product $ab$ by hand.
+
+### Answers
+
+$ab = \begin{pmatrix} (1 \times -4)+(2 \times 2)+(1 \times 1) & (1 \times 3)+(2 \times -1)+(1 \times -1) & (1 \times -1)+(2 \times 0)+(1 \times 1) \\ (2 \times -4)+(3 \times 2)+(2 \times 1) & (2 \times 3)+(3 \times -1)+(2 \times -1) & (2 \times -1)+(3 \times 0)+(2 \times 1) \\ (1 \times -4)+(1 \times 2)+(2 \times 1) & (1 \times 3)+(1 \times -1)+(2 \times -1) & (1 \times -1)+(1 \times 0)+(2 \times 1)\end{pmatrix}$
+
+$ab = \begin{pmatrix}1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 1\end{pmatrix}$
+
+### T5. Covariance matrix
+
+A vector $Y$ is called a random vector if it is a vector and each of its elements are random variables.
+
+Let $Y$ be a random vector in $\mathbb{R^n}$ (so it has n elements). The expected value of $Y$ is defined as $\begin{pmatrix} Y_1 - E[Y_1] \\ Y_2-E[Y_2] \\.\\.\\.\\Y_n-E[Y_n] \end{pmatrix}$.
+
+i. Express the matrix product $(Y − E[Y])(Y − E[Y])^T$ elementwise.
+
+ii. Write the ijth element of the matrix in (i) in terms of Yi, Yj , E[Yi], and E[Yj].
+
+iii. What is the expected value of the ijth element of the matrix in (i)? (Hint: it’s one of the common expectations defined in lecture.)
+
+iv. The matrix of the expected values in (iii) is defined as the variance of the random vector $Y$. That is: $Var(Y) = E(Y − E[Y])(Y − E[Y])^T$
+Why do you suppose that this matrix is called a ‘variance-covariance’ matrix? (You do not need to do any math to answer this question.)
+
+### Answers
+
+i.) $(Y − E[Y])(Y − E[Y])^T = \begin{pmatrix} (Y_1 - E[Y_1])^2 & (Y_1 - E[Y_1])(Y_2 - E[Y_2]) & ... & (Y_1 - E[Y_1])(Y_n - E[Y_n]) \\ (Y_2 - E[Y_2])(Y_1 - E[Y_1]) & (Y_2 - E[Y_2])^2 & ... & (Y_2 - E[Y_2])(Y_n - E[Y_n]) \\ . \\ . \\. \\ (Y_n - E[Y_n])(Y_1 - E[Y_1]) & (Y_n - E[Y_n])(Y_2 - E[Y_2]) & ... & (Y_n - E[Y_n])^2\end{pmatrix}$
+
+ii.) $(Y_i - E[Y_i])(Y_j - E[Y_j])$
+
+iii.) $Cov(Y_1, Y_2)$
+
+iv.) Because it is composed elementwise of the covariances of $Y_i, Y_j$ off the main diagonal, and of the variances of $Y_i$ on the diagonal.

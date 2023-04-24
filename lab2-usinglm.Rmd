@@ -1,0 +1,200 @@
+---
+title: "Fitting linear models in R"
+author: "PSTAT126"
+date: "Lab 2"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+# default code chunk options
+knitr::opts_chunk$set(echo = F,
+                      results = 'markup',
+                      message = F, 
+                      warning = F,
+                      fig.width = 4,
+                      fig.height = 3,
+                      fig.align = 'center') 
+
+# load packages
+library(faraway)
+library(tidyverse)
+```
+
+### Objectives
+
+This lab covers the basics of fitting linear models in R and explores some of the main ideas from lecture this week in greater detail.
+
++ Checking the calculations 'by hand'
++ Model visualizations with `ggplot2`
++ Using `lm()` and `lm` objects in R
+
+Throughout the lab, we'll work with the `eco` data from `faraway` on 1998 per capita income for each U.S. state and the proportion of residents of each state born in the U.S. as of the 1990 census. The introductory lectures for the course showed the following plot:
+```{r}
+ggplot(eco, aes(x = usborn, y = income)) + 
+  geom_point() +
+  labs(x = 'Percentage of state population born in U.S.',
+       y = 'Per capita income in 1998 (USD)') 
+```
+
+We'll be using this plot again, so let's store it. One nice feature of `ggplot` graphics is that they can be named and reproduced or modified by calling the name.
+```{r, echo = T}
+p <- ggplot(eco, aes(x = usborn, y = income)) + 
+  geom_point() +
+  labs(x = 'Percentage of state population born in U.S.',
+       y = 'Per capita income in 1998 (USD)') 
+```
+
+
+## Basic use of `lm()`
+
+The model fit you saw in the introductory lecture was a third-order polynomial model:
+$$\text{income}_i = \beta_0 + \beta_1 \text{percentage}_i + \beta_2 \text{percentage}_i^2 + \beta_3 \text{percentage}_i^3 + \epsilon_i$$
+
+The reasoning for this choice of model was that it gave a smooth enough fit to the apparent curvature without being overly complicated. We'll illustrate the use of `lm()` by fitting this model.
+
+`lm()` requires two inputs to fit a linear model: a data frame, containing the data; and a formula, expressing the model you wish to fit. Basic usage looks something like this:
+```{r, echo = T, eval = F}
+lm(y ~ x1 + ... + xp, data = my_df)
+```
+
+A somewhat crude way to fit the polynomial model is to 'manually' calculate the power terms and add them as columns to the data frame:
+```{r, echo = T}
+# 'manual' calculation
+eco <- mutate(eco, 
+              usborn_sq = usborn^2,
+              usborn_cu = usborn^3)
+
+# fit model
+cubic_fit_v1 <- lm(income ~ usborn + usborn_sq + usborn_cu, data = eco)
+
+# print
+cubic_fit_v1
+```
+
+But formulae can include functions of the predictors. Any arithmetic operation of a predictor `x` can be enclosed in `I()`, *e.g.*, `I(3*x^2 + 1)`. (The reason for having an extra function is that, as you've seen, `+` means something different in a formula expression than addition; the same is true of `^` and `*`.) So the formula input can be utilized to perform those calculations 'under the hood', saving a few lines of code:
+```{r, echo = T}
+# fit model
+cubic_fit_v2 <- lm(income ~ usborn + I(usborn^2) + I(usborn^3), data = eco)
+
+# print
+cubic_fit_v2
+```
+
+Even that, however, is a little cumbersome. The `poly()` function in R will compute polynomials of any degree. For instance:
+```{r, echo = T}
+poly(1:4, degree = 5, raw = T)
+```
+
+Since this is a function call (not an operator like `+`), it can be input directly into the formula:
+```{r, echo = T}
+# fit model
+cubic_fit_v3 <- lm(income ~ poly(usborn, degree = 3, raw = T), data = eco)
+
+# print
+cubic_fit_v3
+```
+
+We can easily check that the results are the same by retrieving just the coefficient estimates from the `lm` objects and putting them side by side.
+```{r, echo = T}
+# compare estimates
+bind_cols(manual = cubic_fit_v1$coefficients,
+          using_I = cubic_fit_v2$coefficients,
+          using_poly = cubic_fit_v3$coefficients)
+```
+
+Conveniently, `ggplot` allows us to add a visualization of the model using the model formula as a layer to the scatterplot. This was the plot you saw in the introductory lecture:
+```{r, echo = T}
+p + geom_smooth(method = 'lm', 
+                formula = 'y ~ poly(x, 3, raw = T)',
+                se = F)
+```
+
+Notice that the variable names have been replaced by `y` and `x` above.
+
+Now that you have a better understanding of linear models, you might also be interested in having a look at the quantiative summary of the fitted model in R:
+```{r, echo = T}
+summary(cubic_fit_v3)
+```
+
+If you simply want to return the coefficient estimates ($\hat{\beta}$), the `coef()` function will do the trick:
+```{r, echo = T}
+coef(cubic_fit_v3)
+```
+
+To retrieve the variance estimate, it's (unfortunately) necessary to go through `summary()`:
+```{r, echo = T}
+sigmasq_hat <- summary(cubic_fit_v3)$sigma^2
+sigmasq_hat
+```
+
+### Your turn
+
+Try fitting a *quadratic* model instead:
+$$\text{income}_i = \beta_0 + \beta_1 \text{percentage}_i + \beta_2 \text{percentage}_i^2 + \epsilon_i$$
+
+i. Use whichever formula approach you prefer, and store the result of your call to `lm()` as `quadratic_fit`.
+
+```{r}
+quadratic_fit_v3 <- lm(income ~ poly(usborn, degree = 2, raw = T), data = eco)
+```
+
+
+ii. Print the summary table.
+
+```{r, echo = T}
+summary(quadratic_fit_v3)
+```
+
+iii. Add a visualization of the quadratic model to the scatterplot.
+
+```{r}
+p + geom_smooth(method = 'lm', 
+                formula = 'y ~ poly(x, 2, raw = T)',
+                se = T)
+```
+
+
+iv. Which model, quadratic or cubic, do you prefer, and why?
+ I prefer the cubic because there is a lower R^2, implying lower error
+
+## Checking the calculations 'by hand'
+
+In lecture a closed-form solution for the OLS estimator is derived:
+$$\hat{\beta} = (\mathbf{x'x})^{-1}\mathbf{x'}Y$$
+Here we'll calculate this to double-check that it yields the same result given by `lm()`. 
+
+The first step is to construct the predictor matrix. This isn't too tricky, but it's not as easy as simply calling the data frame in `lm()`:
+```{r, echo = T}
+# see video for an explanation of this chunk
+x_mx <- mutate(eco, intercept = 1) %>%
+  select(intercept, usborn, usborn_sq, usborn_cu) %>%
+  as.matrix()
+
+y <- pull(eco, income)
+```
+
+#### Your turn
+
+Now that the predictor matrix has been created for you, carry out the linear algebra operations to compute the OLS estimator. 
+```{r}
+# compute x'x
+xtx <- t(x_mx) %*% x_mx
+
+# then compute x'x inverse (use solve(xtx))
+xtx_inv <- solve(xtx)
+
+# then compute x'y
+xty <- t(x_mx) %*% y
+
+# then compute xtx_inv %*% xty
+xtx_inv %*% xty
+
+# compare with result of lm()
+
+```
+
+
+## Code appendix
+
+```{r appendix, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```

@@ -1,0 +1,153 @@
+---
+title: "PSTAT 126 Practice 1"
+author: "Saad Mouti"
+date: "Spring 2023"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+# knit options
+knitr::opts_chunk$set(echo = F,
+                      results = 'markup',
+                      fig.width = 4,
+                      fig.height = 3,
+                      fig.align = 'center',
+                      message = F,
+                      warning = F)
+
+# packages
+library(tidyverse)
+library(faraway)
+```
+
+### Instructions
+
+This practice contains a series of applied questions. They are mostly, but not exclusively, based on lecture and lab material, and may require you to do a little independent thinking or investigation here and there.
+
+Please use this .Rmd file as a template and *modify your own copy of it* to complete the assignment by answering all questions in the locations indicated. For the mathematical questions ('Theory' section), you have the option to prepare your responses by pen and paper instead of typesetting in the .Rmd file.
+
+\newpage
+
+## Application
+
+This part comprises questions that involve writing R codes. Please write your codes and answers in the locations indicated and be sure to follow the instructions regarding whether to show codes and output.
+
+#### A1. Linear algebra in R
+
+Refer to question T4. Create matrices named `a` and `b` in R having the elements indicated in T4 and verify the answer you computed by hand by calculating the matrix product in R. Show both your code and the result, and please ensure that your code exhibits proper style (see lab 1 for guidelines).
+
+#### A1. Answer
+
+```{r A1, results ='markup' ,echo =TRUE}
+a = matrix(c(1,2,1, 2,3,2, 1,1,2), nrow=3, ncol=3, byrow=TRUE)
+b = matrix(c(-4,3,-1, 2,-1,0, 1,-1,1), nrow=3, ncol=3, byrow=TRUE)
+a
+b
+```
+
+
+#### A2. Data frames
+
+For this problem you'll work with the `gala` data from the `faraway` package. This is data on plant species on the Galapagos islands. Pull up the help file by entering `?faraway::gala` in the console so that you have an explanation of the data handy for reference.
+
+Here are the first four rows of the data frame:
+
+```{r}
+head(gala, 4)
+```
+
+Recall that in R there are several ways to obtain a single column of a data frame: by name or by index.
+
+```{r, echo = T, eval = F}
+# by name
+gala$Endemics
+
+# by entry index
+gala[, 2]
+
+# by list index
+gala[[2]]
+```
+
+We'll be learning parts of the `tidyverse` package -- actually a collection of packages. Functions in these packages are often more intuitive and legible, and avoid having to write 'low-level' codes that require keeping track of indexes and the like. The `tidyverse` alternative to retrieving a column is `pull()`:
+
+```{r, echo = T, eval = F}
+# via dplyr
+pull(gala, Endemics)
+```
+
+A new variable, such as the proportion of recorded species that are endemic on each island, can be created by adding a named column. In base R this would be something like:
+
+```{r, echo = T, results = 'hide'}
+# base r
+gala$prop_endemic <- gala$Endemics/gala$Species
+gala
+```
+
+In `tidyverse` we instead `mutate` the data frame:
+
+```{r, echo = T, results = 'hide'}
+# tidyverse equivalent
+mutate(.data = gala, prop_endemic_duplicate = Endemics/Species)
+```
+
+To save the new variable as part of the data frame we must assign the result a name. Using the same name as the original data frame will 'write over' `gala` in the environment.
+
+```{r, echo = T, results = 'hide'}
+# store result by writing over original data frame
+gala <- mutate(.data = gala, prop_endemic_duplicate = Endemics/Species)
+```
+
+i.  Create a new variable `area_mi` that contains the area of each island in miles. Use the `tidyverse` syntax. Pull the new column using `pull`. Show both your code and the pulled column.
+
+```{r, echo=TRUE, results='markup'}
+gala <- mutate(.data = gala, area_mi = Area*1000)
+pull(gala, area_mi)
+
+```
+
+ii. Create a new variable that `area_prop_adjacent` that gives the area of each island as a proportion of the area of the adjacent island. Show only your code.
+
+```{r, echo=TRUE, results='hide'}
+gala <- mutate(.data = gala, area_prop_adjacent = Area/Adjacent)
+
+```
+
+iii. Repeat (i) and (ii) in base R syntax. Show only your code.
+
+```{r, results='hide', echo=TRUE}
+gala$area_mi <- gala$Area*1000
+gala$area_prop_adjacent <- gala$Area/gala$Adjacent
+```
+
+#### A3. Scatterplot
+
+For this question you'll continue to use the Galapagos data, including the new variables you created in A2.
+
+i.  Use the example in Lab 1 to construct a scatterplot of the proportion of recorded species that are endemic against the log of the area (in km) with descriptive axis labels. Show the plot only (suppress your codes).
+
+ii. Does the graphic suggest a *linear* relationship between the proportion of endemic species and island area?
+
+iii. Do you think that the relationship could be described by a linear model? If not, say why; if so, suggest a functional form that seems reasonable to you, using $x$ for area and $Y$ for the proportion of species that are endemic.
+
+#### A3. Answer
+
+i.  
+```{r, echo=FALSE, results='markup'}
+ggplot(data = gala, mapping = aes(x = prop_endemic, y = log(Area))) + 
+  geom_point() +
+  labs(title = 'Prop. of Endemic Species by Island Area', x = 'Percentage of species that are endemic', y = 'Island Area (km) (log scale)')
+```
+
+ii. Yes, you could fit a line to approximate the relationship between the x and y axes based on the data points.
+
+iii. Yes, $Y = -20x+10$
+
+\newpage
+
+## Code appendix
+
+```{r appendix, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```

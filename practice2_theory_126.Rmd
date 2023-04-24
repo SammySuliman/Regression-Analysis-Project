@@ -1,0 +1,162 @@
+---
+title: "practice2_126"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+date: "2023-04-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Practice 2
+
+## Concepts
+
+The linear model in matrix form is: 
+$\begin{pmatrix} Y_1 \\ Y_2 \\ ... \\ Y_n \end{pmatrix} = \begin{pmatrix} 1 & x_{11} & ... & x_{1p} \\ 1 & x_{21} & ... & x_{2p} \\ ... \\ 1 & x_{n1} & ... & x_{np} \end{pmatrix} \begin{pmatrix} \beta_0 \\ \beta_1 \\ ... \\ \beta_p \end{pmatrix} + \begin{pmatrix} \epsilon_1 \\ \epsilon_2 \\ ... \\ \epsilon_p\end{pmatrix}$.
+
+i. Write the dimensions of $Y, \textbf{x}, \beta, \epsilon$.
+
+ii. List the three assumptions about the random error term mathematically.
+
+iii. List the same three assumptions verbally.
+
+iv. The scatterplot below shows simulated data scatter. The true relationship used to generate the data
+– that is, the systematic part of the system or pure signal – is displayed in red. The simulated data violate exactly one of the model assumptions. Which one do you think it is, and what pattern do you
+see in the plot that makes you think so?
+
+v. The plot you made in Practice 1 is shown below with a linear model for the mean overlaid in blue. Do
+you see anything obvious in the plot that suggests one or more of the assumptions might not hold?
+
+### Answers
+
+i. $Y$ is $n \times 1$ column vector, $\textbf{x}$ is $n \times (p+1)$ matrix, $\beta$ is $(p+1) \times 1$ column vector, $\epsilon$ is $n \times 1$ column vector. 
+ii. $E[\epsilon_i] = 0, Var[\epsilon_i] = \sigma^2, \epsilon_i \perp \epsilon_j$.
+iii. The response is linear, constant variance $\sigma^2$ for each observation, and each observation is independent to every other observation.
+iv. The variance is not constant.
+v. The variance is visibly not constant - lower-valued $x_i$ have higher variance.
+
+## Theory
+
+This section contains mathematical questions.
+
+### T1. Some optimization
+
+Find the argmin in $\mathbb{R}^2$ of the function given by $f(x,y) \mapsto x^2 + y^2 − xy$. Show the work.
+
+### Answer
+
+Let $0 =$ $\frac{\partial f}{\partial x}$ $= 2x-y, 0 = \frac{\partial f}{\partial y} = 2y-x$. Therefore, $(0,0)$ is a critical point of $f$.
+
+$H = \begin{pmatrix} \frac{\partial^2f}{\partial x^2} & \frac{\partial^2f}{\partial x \partial y} \\ \frac{\partial^2f}{\partial y\partial x} & \frac{\partial^2f}{\partial^2y}\end{pmatrix} = \begin{pmatrix} 2 & -1 \\ -1 & 2 \end{pmatrix}$. $0 = \begin{vmatrix} 2-\lambda & -1 \\ -1 & 2-\lambda \end{vmatrix} = (2 - \lambda)^2 - 1 = 0$. Therefore, $\lambda_1 = 1 > 0, \lambda_2 > 0$.
+
+Since Hessian is positive definite for all $x \in \mathbb{R}$, $f$ attains local minima at $(0,0)$.
+
+### T2. Algebra
+
+Use R to diagonalize the following matrix. Is it positive definite?
+
+$\begin{pmatrix} 2 & 2 & 1 \\ 2 & 5 & 2 \\ 1 & 2 & 2 \end{pmatrix}$
+
+### Answer
+
+```{r}
+# Use R to diagonalize m
+m <- matrix(c(2,2,1,2,5,2,1,2,2), nrow = 3)
+print(m)
+p <- eigen(m)$vectors
+d <- solve(p) %*% m %*% p
+d
+```
+
+
+$\begin{vmatrix} 2 \end{vmatrix} > 0, \begin{vmatrix} 2 & 2 \\ 2 & 5 \end{vmatrix} = 10 - 4 = 6 > 0, \begin{vmatrix} 2 & 2 & 1 \\ 2 & 5 & 2 \\ 1 & 2 & 2 \end{vmatrix} = 2 \cdot \begin{vmatrix} 5 & 2 \\ 2 & 2 \end{vmatrix} - 2 \cdot \begin{vmatrix} 2 & 2 \\ 1 & 2 \end{vmatrix} + 1 \cdot \begin{vmatrix} 2 & 5 \\ 1 & 2 \end{vmatrix}$
+
+$= 2 \cdot (10 - 4) -2\cdot(4-2)+1 \cdot (4-5) = 12 - 4 - 1 = 7 > 0$. 
+
+Since all leading principal minors positive, the matrix is positive definite.
+
+### T3. Simple linear regression
+
+A linear model with a single predictor is known as a simple linear regression model:
+
+$Y = \beta_0 + \beta_1x + \epsilon$
+
+i. Write the simple linear regression model in observation-indexed form and list the standard assumptions for the error term.
+
+ii. Write the model in matrix form.
+
+iii. Use the general OLS estimator, $(x^Tx)^{-1}−x^TY$ to find closed-form expressions for the least squares estimators $\hat{\beta_0}$ and $\hat{\beta_1}$. (Hint: approach this piecewise by calculating $(x^Tx)^{−1}$ and $x^TY$ separately; then calculate the product.)
+
+### Answers
+
+i. $Y_i = \beta_0 + \beta_1x_i + \epsilon_i$
+
+ii. $\begin{pmatrix} Y_1 \\ Y_2 \\ . \\ . \\ Y_n \end{pmatrix} = \begin{pmatrix} 1 & x_{11}\\ ... \\ 1 & x_{n1}\end{pmatrix} \begin{pmatrix} \beta_0 \\ \beta_1\end{pmatrix} + \begin{pmatrix} \epsilon_1 \\ \epsilon_2 \\ . \\ . \\ \epsilon_n \end{pmatrix}$
+
+iii. $\begin{pmatrix} \hat{\beta_0} \\ \hat{\beta_1} \end{pmatrix} = (\begin{pmatrix} x_{11} & x_{21} \\ x_{12} & x_{22}\end{pmatrix}\begin{pmatrix} x_{11} & x_{12} \\ x_{21} & x_{22}\end{pmatrix})^{-1} \begin{pmatrix} x_{11} & x_{21} \\ x_{12} & x_{22} \end{pmatrix} \begin{pmatrix} y_1 \\ y_2 \end{pmatrix}$
+
+$= \begin{pmatrix} x_{11}^2+x_{21}^2 & x_{11}x_{12}+x_{21}x_{22} \\ x_{11}x_{12}+x_{21}x_{22} & x_{12}^2+x_{22}^2 \end{pmatrix}^{-1} \begin{pmatrix} x_{11}y_1 + x_{21}y_2 \\ x_{12}y_1+x_{22}y_2 \end{pmatrix}$
+
+$= \frac{1}{(x_{11}^2+x_{21}^2)(x_{12}^2+x_{22}^2)-(x_{11}x_{12}+x_{21}x_{22})^2} \begin{pmatrix} x_{12}^2+x_{22}^2 & -x_{11}x_{12}-x_{21}x_{22} \\ -x_{11}x_{12}-x_{21}x_{22} & x_{11}^2+x_{21}^2 \end{pmatrix} \begin{pmatrix} x_{11}y_1+x_{21}y_2 \\ x_{12}y_1+x_{22}y_2\end{pmatrix}$
+
+$= \frac{1}{(x_{11}^2+x_{21}^2)(x_{12}^2+x_{22}^2)-(x_{11}x_{12}+x_{21}x_{22})^2} \begin{pmatrix} (x_{11}y_1+x_{21}y_2)(x_{12}^2+x_{22}^2) - (x_{12}y_1 + x_{22}y_2)(-x_{11}x_{12}-x_{21}x_{22}) \\ (x_{11}y_1+x_{21}y_2)(-x_{11}x_{12}-x_{21}x_{22})+(x_{12}y_1+x_{22}y_2)(x_{11}^2+x)\end{pmatrix}$
+
+## T4. Simple Linear Regression
+
+Consider a linear regression model again:
+$ Y = β_0 + β_1x + ε$
+with $E[ε] = 0$, $Var(ε) = σ^2$ and $ε_i ⊥ ε_j$ for all $i \neq j$.
+
+i. Show that Cov$(\hatβ_0, \hatβ_1) =  \frac{-\bar{x}σ^2}{S_{xx}}$.
+ii. Show that Cov$(\bar{Y},\hatβ_1) = 0$.
+
+### Answers
+
+i. $Cov(\hat\beta_0, \hat\beta_1) = E[\hat\beta_0\hat\beta_1] - E[\hat\beta_0]E[\hat\beta_1]$
+
+$= E[(\bar Y - \hat\beta_1\bar X)\hat\beta_1] - \hat\beta_0\hat\beta_1$
+$= E[\bar{Y}\hat\beta_1 - \hat\beta_1^2\bar{X}] - \hat\beta_0 \hat\beta_1$
+
+$= \bar{Y}\hat\beta_1 - E[\bar{X}\hat\beta_1^2] - (\bar{Y}-\hat\beta_1\bar{X})\hat\beta_1$
+
+$= \bar{Y}\hat\beta_1 - \bar{X}E[\hat\beta_1^2] - \bar{Y}\hat\beta_1 + \hat\beta_1^2\bar{X}$
+
+$= -\bar{X}[E[\hat\beta_1^2] - E[\hat\beta_1^2]]$
+
+$= -\bar{X}Var(\hat\beta_1) = \frac{-\bar{X}\sigma^2}{S_{XX}}. \blacksquare$
+
+ii. $Cov(\bar{Y}, \hat\beta_1) = E[\bar{Y}\hat\beta_1] - E[\bar{Y}]E[\hat\beta_1]$
+
+$= E[(\hat\beta_0+\hat\beta_1\bar{X})\hat\beta_1] - \bar{Y}\hat\beta_1$
+
+$= E[\hat\beta_0\hat\beta_1 + \hat\beta_1^2\bar{X}] - \bar{Y}\hat\beta_1$
+
+$= E[\hat\beta_0\hat\beta_1 + \hat\beta_1^2\bar{X}] - \bar{Y}\hat\beta_1$
+
+$= E[(\bar{Y} - \hat\beta_1\bar{X})\hat{\beta}_1 + \hat\beta_1^2\bar{X}]$
+
+$= E[\bar{Y}\hat\beta_1] - \bar{Y}\hat\beta_1$
+
+$= \bar{Y}\hat\beta_1 - \bar{Y}\hat\beta_1 = 0. \blacksquare$
+
+### T5. Estimating a population mean
+
+An intercept-only model is an alternative way to express that
+univariate data form a random sample.
+$Y_1, . . . , Y_n \sim ^{iid}  f$ where $f$ is any distribution with a finite mean and variance is equivalent to $$Y_i = \mu + \epsilon_i i=1,...,n$$
+with the standard model assumptions.
+
+i. Write the intercept-only model in matrix form.
+ii. Derive the least squares estimator of $μ$ using the general OLS estimator $(x^Tx)^{−1}x^TY$.
+
+### Answers
+
+i. $\begin{pmatrix} Y_1 \\ Y_2 \\ . \\ . \\ Y_n \end{pmatrix} = \begin{pmatrix} 1 & 0 & ... & 0 \\ 1 & 0 & ... & 0 \\ ... \\ 1 & 0 & ... & 0 \end{pmatrix} \begin{pmatrix} \mu \\ \mu \\ . \\ . \\ \mu \end{pmatrix} + \begin{pmatrix} \epsilon_1 \\ \epsilon_2 \\. \\ . \\ \epsilon_n \end{pmatrix}$.
+
+ii. $\hat\mu = (\textbf{x}^T\textbf{x})^{-1}\textbf{x}^TY$
+$= \frac{1}{n}\sum_{i=1}^n Y_i = \bar{Y}$
+

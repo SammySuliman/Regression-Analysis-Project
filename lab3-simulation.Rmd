@@ -1,0 +1,322 @@
+---
+title: "Simulation"
+author: "PSTAT126"
+date: "Lab 3"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+# default code chunk options
+knitr::opts_chunk$set(echo = T,
+                      results = 'markup',
+                      message = F, 
+                      warning = F,
+                      fig.width = 4,
+                      fig.height = 3,
+                      fig.align = 'center') 
+
+# load packages
+library(tidyverse)
+library(modelr)
+```
+
+### Objectives
+
+In class we have reviewed the mathematical calculation establishing that the OLS estimator $\hat{\beta}$ has mean and variance:
+$$\mathbb{E}[\hat{\beta}] \qquad\text{and}\qquad \text{Var}(\hat{\beta})$$
+But what does this really mean?
+
+These properties capture the behavior of the estimator *under repeated sampling* -- that is, across multiple datasets. This can often be tricky to imagine, because in practice one usually only works with a single set of data, and computes a single estimate. So it's perhaps not natural to consider what else might have happened with different data.
+
+In this lab you'll explore the meaning of these theoretical properties through simulation, by actually generating a large number of datasets, computing estimates on each one, and examining the sample properties of the estimates.
+
+The simulation scheme is covered in steps:
+
+- simulating random numbers;
+- generating a synthetic dataset;
+- generating many datasets;
+- fitting many models;
+- sample properties of the estimates.
+
+
+## Simulating random numbers
+
+The behavior of random variables from common distributions can be easily simulated with simple commands in R. For example:
+
+```{r}
+# simulate values from a standard normal distribution
+rnorm(n = 4, mean = 0, sd = 1)
+
+# simulate values uniformly distributed between -1 and 1
+runif(n = 2, min = -1, max = 1)
+```
+
+Try running the chunk again, and notice that different values are produced.
+
+However, while the values generated behave like random variables, they are in fact *pseudo-random* -- perfectly predictable if the starting point of the algorithm used to generate them is known. This starting point can be characterized by a random number generation 'seed'. 
+
+The seed can be fixed at any number using `set.seed()`. This is useful because it can ensure that any codes relying on pseudo-random number generation always return the same result; in other words, it makes results *reproducible*. Try running the chunk below a few times (be sure you run the *whole* chunk, including the `set_seed()` part).
+
+```{r}
+# for reproducibility
+set.seed(10821)
+
+# simulate values from a standard normal distribution
+rnorm(n = 4, mean = 0, sd = 1)
+```
+
+Notice that the result stays the same, unlike the first chunk.
+
+If a larger number of values are simulated, it's easy to check that they behave like the distribution they mimic:
+
+```{r}
+# for reproducibility
+set.seed(10821)
+
+# histogram of 10k simulated N(0, 1) values
+rnorm(n = 10000, mean = 0, sd = 1) %>%
+  as_tibble() %>%
+  ggplot(aes(x = value)) + 
+  geom_histogram(aes(y = ..density..), bins = 100)
+```
+
+## Generating a synthetic dataset
+
+Let's lay out a scheme for simulating data according to a linear model. In this case, we will start with the *data-generating process* $Y = \mathbf{x}\beta + \epsilon$ and create a *realization* of $\mathbf{x}, Y$: one possible dataset that follows this process.
+
+In our treatment of the linear model, we regard the predictor matrix $\mathbf{x}$ as fixed. The simulation scheme will reflect this: the chunk below generates values of two predictors $x_1$ and $x_2$ for a fixed sample size.
+
+```{r}
+# for reproducibility
+set.seed(10821)
+
+# fix sample size
+samp_size <- 50
+
+# fix predictor matrix
+predictor_df <- tibble(x1 = runif(n = samp_size, min = 5, max = 50),
+               x2 = runif(n = samp_size, min = -10, max = 0))
+```
+
+Now in order to simulate data according to a linear model, we'll define a function that represents the true mean $\mathbb{E}Y$ in terms of the values of the predictors and the parameters:
+$$\mathbb{E}[Y] = f(\mathbf{x}) = \beta_0 + \beta_1x_1 + \beta_2x_2$$
+
+```{r}
+# true relationship between x's and mean y
+fx <- function(x1, x2){0.5*x1 - 2*x2}
+```
+
+To simulate just one dataset, one could add simulated random errors to the mean to form simulated values of the response:
+
+```{r}
+# simulate a single dataset
+predictor_df %>% mutate(y = fx(x1, x2) + rnorm(n = samp_size, mean = 0, sd = 6)) %>% head()
+```
+
+#### Check your understanding
+
+What are the true values of the model parameters $\beta$ and $\sigma^2$?
+
+$$\beta_0 = 0.5, \beta_1 = -2, \sigma^2 = 36$$
+
+Here are plots of the marginal relationships between the response and predictors for one simulated dataset. Don't worry about following the plotting codes (you'll learn how to do this later in the course).
+
+```{r, echo = F, fig.width = 6, fig.height = 3}
+predictor_df %>% mutate(y = fx(x1, x2) + rnorm(n = samp_size, mean = 0, sd = 6)) %>%
+  pivot_longer(contains('x')) %>%
+  ggplot(aes(x = value, y = y)) +
+  facet_wrap(~ name, scales = 'free_x') +
+  geom_point() +
+  labs(x = 'Predictor', y = 'Response')
+```
+
+## Generating many datasets
+
+To explore the properties of the OLS estimator, we'll want to generate a large number of synthetic datasets, so that we can compute a large number of estimates. In other words, we'll want to iterate the scheme above.
+
+One effective strategy for iteration is to define a function that captures the procedure one wishes to iterate. In our case, that is the generation of a single dataset as shown above; so we can simply wrap that in a function that I'll call `sample_fn` (function for drawing a new sample).
+
+```{r}
+# define a function to simulate one dataset
+sample_fn <- function(i){
+out <- predictor_df %>% 
+  mutate(y = fx(x1, x2) + rnorm(n = samp_size, 
+                                mean = 0, 
+                                sd = 6))
+}
+```
+
+#### Check your understanding
+
+Use `sample_fn` to create one dataset and print the first four rows. Ensure that your result is reproducible.
+
+```{r}
+# solution
+i <- set.seed(70)
+sample1 <- sample_fn(i)
+print(sample1)[0:4,]
+```
+
+The chunk below iterates this many times. Don't worry too much about understanding the codes (though they're not complicated!). Do notice, though, the result: a column indexing the sample, and a column containing the datasets.
+
+```{r}
+# for reproducibility
+set.seed(10821)
+
+# fix a number of datasets to simulate
+num_datasets <- 1000
+
+# simulate collection of num_samp datasets 
+sim_datasets <- tibble(samp = 1:num_datasets) %>%
+  mutate(data = map(samp, sample_fn)) 
+
+# preview
+sim_datasets %>% head(3)
+```
+
+The data column is shown in 'nested' format as a 'list column' -- indicating only the object type of the entries -- but each entry in the `data` column is one dataset.
+
+```{r}
+# first dataset
+sim_datasets$data[[1]] %>% head()
+```
+
+## Fitting many models
+
+The section above creates `sim_datasets`, which contains 1000 synthetic datasets. By fitting a model to each of these datasets and retrieving the estimates, we are in effect drawing a sample of $\hat{\beta}$'s. 
+
+The code chunk below fits a linear model to all 1000 datasets and extracts the coefficients.
+
+```{r}
+# fitting function
+fit_fn <- function(df){lm(y ~ x1 + x2, data = df)}
+
+# fit a model to each dataset and extract coefficients
+sim_datasets <- sim_datasets %>% 
+  # fit a model to each dataset
+  mutate(fit = map(data, fit_fn)) %>%
+  # extract coefficients from each fitted model
+  mutate(coefs = map(fit, coef),
+         variance = map(fit, ~ summary(.x)$sigma^2)) %>%
+  # extract coefficient names
+  mutate(which_coef = map(coefs, names)) %>%
+  # rearrange dataframe
+  unnest(coefs, variance, which_coef) %>%
+  pivot_wider(values_from = coefs, 
+              names_from = which_coef)
+
+# preview
+sim_datasets %>% head(3)
+```
+
+Now each row is a different dataset -- a different realization of the data-generating process -- and the last few columns show the coefficient estimates for that dataset. 
+
+## Sample properties of the estimates
+
+We now have 1000 coefficient estimates. We can now use these to explore the theoretical properties of the OLS estimator through an empirical lens by computing simple sample statistics, making plots, and the like.
+
+### Visualizing the sampling distribution
+
+The plot below shows histograms of the coefficient estimates $\hat{\beta}_j$ across all 1000 datasets, with the true values indicated by red vertical lines. This approximates the sampling distribution of $\hat{\beta}$. (Again, don't worry about the plotting codes.)
+
+```{r, fig.width = 7, fig.height = 3}
+# store estimates
+sim_estimates <- sim_datasets %>%
+  select(4:7)
+
+# store true parameter values
+true_coefs <- tibble(`(Intercept)` = 0, x1 = 0.5, x2 = -2, variance = 36) %>%
+  pivot_longer(everything())
+
+# plot histograms
+sim_estimates %>%
+  pivot_longer(everything()) %>%
+  ggplot(aes(x = value)) +
+  facet_wrap(~ name, scales = 'free') +
+  geom_histogram(aes(y = ..density..), bins = 20) +
+  labs(x = 'coefficient estimate', y = 'density') +
+  geom_vline(data = true_coefs, 
+             aes(xintercept = value), 
+             color = 'red')
+```
+
+#### Pause and assess
+
+Consider and answer the following questions.
+
+**Are the coefficient estimates accurate all the time?**
+
+No, otherwise the hustograms would just be vertical lines at the mean.
+
+**Do the coefficient estimates seem accurate most of the time?**
+
+Yes, since they are largely centered around the mean.
+
+**Which coefficient estimates vary the most from dataset to dataset?**
+
+$\hat\sigma^2$
+
+
+### Bias and variance
+
+The OLS estimator is unbiased: $\mathbb{E}\hat{\beta} = \beta$. What that really means is that on average across samples (datasets), the estimator is accurate; so our average estimate should be very close to the true values. The chunk below computes the average estimate for each coefficient across all simulated dataesets.
+
+```{r}
+# average estimate
+sim_estimates %>% summarize(across(.cols = everything(), .fns = mean))
+```
+
+The theoretical variance of the OLS estimator is $\text{Var}(\hat{\beta}) = \sigma^2(\mathbf{x^Tx})^{-1}$. What this really captures is the variability across samples; so the sample variances and covariances of the 1000 estimates should be close to the values of the theoretical variance-covariance matrix.
+
+The theoretical variance-covariance matrix is computed below.
+```{r}
+# get predictor matrix from one of the models (it's the same for all models)
+x_mx <- model.matrix(sim_datasets$fit[[1]])
+
+# invert x^Tx
+xtx <- t(x_mx) %*% x_mx
+xtx_inv <- solve(xtx)
+
+# compute variance covariance matrix
+vcov_theoretical <- xtx_inv*36
+
+# print
+vcov_theoretical
+```
+
+The sample variances and covariances of the simulated estimates are shown below. Notice how close they are to the theoretical values.
+```{r}
+# sample variance-covariance matrix
+sim_estimates %>% select(-variance) %>% var()
+```
+
+#### Check your understanding
+
+Compute the sample variance of $\hat{\beta}_0$ and the sample covariance of $\hat{\beta}_0, \hat{\beta}_1$ across the 1000 estimates. Examine the sample variance-covariance matrix to identify the matching values.
+
+```{r}
+# solution
+mean_diff_sq <- sim_estimates %>%
+  select(`(Intercept)`) %>%
+  mutate(mean_diff = `(Intercept)` - mean(`(Intercept)`)) %>%
+  mutate(mean_diff_sq = mean_diff^2)
+
+(1/999)*sum(mean_diff_sq$mean_diff_sq)
+```
+
+```{r}
+beta0_mean_diff <- sim_estimates %>%
+  select(`(Intercept)`) %>%
+  mutate(mean_diff = `(Intercept)` - mean(`(Intercept)`))
+
+beta1_mean_diff <- sim_estimates %>%
+  select(x1) %>%
+  mutate(mean_diff = x1 - mean(x1))
+
+(1/999)*sum(beta1_mean_diff$mean_diff*beta0_mean_diff$mean_diff)
+```
+
+## Code appendix
+
+```{r appendix, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```

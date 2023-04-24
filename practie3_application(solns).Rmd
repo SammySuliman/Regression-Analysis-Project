@@ -1,0 +1,198 @@
+---
+title: "PSTAT 126 Practice 3 - Application"
+author: "Solutions"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+# knit options
+knitr::opts_chunk$set(echo = F,
+                      results = 'markup',
+                      fig.width = 4,
+                      fig.height = 3,
+                      fig.align = 'center',
+                      message = F,
+                      warning = F)
+
+# packages
+library(tidyverse)
+library(modelr)
+library(faraway)
+```
+
+
+
+\newpage
+## Application
+
+This part comprises questions that involve writing R codes. Please write your codes and answers in the locations indicated and be sure to follow the instructions regarding whether to show codes and output.
+
+#### A1. Standard errors
+
+In Practice 2 you considered the following model of the Galapagos islands species data:
+$$\text{proportion}_i = \beta_0 + \beta_1 \log(\text{area}_i) + \varepsilon_i$$
+This model is fitted for you in the markdown file.
+```{r}
+# calculate proportion
+gala <- gala %>% mutate(prop_endemic = Endemics/Species)
+
+# fit model
+fit <- lm(prop_endemic ~ log(Area), data = gala)
+```
+
+i. Compute an unbiased estimate for $\text{Var}(\hat{\beta}_1)$. State the calculation you performed, why it is unbiased, and give the result out to six decimal places, but do not show any codes.
+```{r, results = 'hide'}
+# extract predictor matrix
+x_mx <- model.matrix(fit)
+
+# compute x'x inverse
+xtx <- t(x_mx) %*% x_mx
+xtx_inv <- solve(xtx)
+
+# error variance estimate
+sigmasq_hat <- summary(fit)$sigma^2
+
+# solution
+sigmasq_hat * xtx_inv[2, 2] 
+```
+
+Since $\text{Var}(\hat{\beta}_1) = \sigma^2 [(\mathbf{x'x})^{-1}]_{22}$ (the $2, 2$ entry of $(\mathbf{x'x})^{-1}$) and $\hat{\sigma}^2$ is unbiased for $\sigma^2$, an unbiased estimate for the variance is:
+$$\hat{\sigma}^2 \left[(\mathbf{x'x})^{-1}\right]_{22} = 0.044526 \times 0.002813 = 0.000125$$
+
+ii. Based on your answer in (i), give an estimated standard deviation for $\hat{\beta}_1$ (this is known as a *standard error* for $\hat{\beta}_1$). Interpret the estimate in 1-2 sentences. State the calculation you performed and give the result out to six decimal places, but do not show any codes.
+
+```{r, results = 'hide'}
+# calculation
+sqrt(sigmasq_hat * xtx_inv[2, 2])
+```
+A standard error for $\hat{\beta}_1$ is:
+$$\sqrt{\hat{\sigma}^2 \left[(\mathbf{x'x})^{-1}\right]_{22}} = 0.011193$$
+This value indicates that on average, estimates of the association between log-area and the proportion of endemic species will vary by 0.011193 from sample to sample.
+
+iii. Interpret the estimate $\hat{\beta}_1$ in context. How much does the expected proportion change with island area according to the fitted model? Along with your answer, show a line of code giving the calculation you performed, but do not show the R output. (*Hint*: consider what happens to the expected proportion if $\text{area} \rightarrow 2\times\text{area}$.)
+
+```{r, results = 'hide', echo = T}
+# calculation
+coef(fit)[2] * log(2)
+```
+If the island area is doubled, the expected percentage of endemic species is estimated to decrease by 2.6%.
+
+iv. Based on your standard error, how much is your answer in (iii) estimated to vary from sample to sample? Show a line of code giving the calculation you performed to obtain your answer, but do not show the output. State your answer in a sentence.
+```{r, results = 'hide'}
+# calculation
+sqrt(sigmasq_hat * xtx_inv[2, 2]) * log(2)
+```
+The estimated association between a doubling of island area and the change in expected percentage of endemic species is estimated to vary by 0.795% on average across samples.
+
+v. Given your answers in (iii) - (iv), do you think that the specific estimate for the association between area and endemic species you obtained from this dataset is a reliable one? Answer in 1-2 sentences.
+
+Yes; the estimated association likely varies a moderate amount (0.008 is about 30% of 0.026, so the estimated variability is about a third of the estimated magnitude), but not so much that the association should not be believed. (Answers may vary a bit here, but should not be overly skeptical.)
+
+vi. How well does the model fit? Answer in 1-2 sentences, and explain how you made your assessment. Provide quantitative support for your answer, but do not show any codes.
+
+The model explains about 29% of the variation in the proportion of endemic species; this is not neglibile, but there is still a lot of unexplained variability. So the fit is not great.
+
+vii. Would you trust predictions from this model? Why or why not?
+
+No; there is still quite a bit of unexplained variation, so predictions are not likely to be accurate on average.
+
+\newpage
+#### A2. Simulation
+
+Are the standard errors for $\hat{\beta}$ still reliable if the constant variance assumption doesn't hold? In this problem you'll explore this question through simulation. It may help to refer to Lab 3 throughout for code examples.
+
+The codes below (in the markdown file) provide you with a basic set-up for the simulation. The plot shows one simulated dataset, with the true relationship indicated in red.
+```{r}
+# for reproducibility
+set.seed(101021)
+
+# fix x values
+samp_size <- 100
+x_vals <- runif(samp_size, min = -5, max = 5)
+
+# function for mean y
+fx <- function(x){1 + 2*x}
+
+# function to generate response
+sample_fn <- function(i){
+  set.seed(i)
+  tibble(x = x_vals) %>%
+    mutate(y = fx(x) + rnorm(samp_size, mean = 0, sd = 1 + x^2/2))
+}
+
+# example dataset
+sample_fn(1) %>%
+  ggplot(aes(x = x, y = y)) +
+  geom_point() +
+  geom_function(fun = fx, color = 'red') 
+```
+
+i. Write the model with the values of the true regression coefficients in the simulation.
+
+$$Y_i = 1 + 2x_i + \varepsilon_i$$ 
+
+ii. What is $\text{Var}(\varepsilon_i)$ in the simulation?
+
+$$\text{Var}(\varepsilon_i) = \left(1 + \frac{x_i^2}{2}\right)^2$$
+
+iii. Write codes to perform the following steps: generate 1000 simulated datasets; fit a simple linear model to each dataset; and extract the parameter estimates. Follow the example in Lab 3; show your codes only.
+
+```{r, echo = T}
+# number of simulations
+num_datasets <- 1000
+
+# fitting function
+fit_fn <- function(df){lm(y ~ x, data = df)}
+
+# generate many datasets, fit model to each, extract coefficients
+sim_out <- tibble(samp = 1:num_datasets) %>%
+  mutate(data = map(samp, sample_fn)) %>%
+  mutate(fit = map(data, fit_fn)) %>%
+  mutate(coefs = map(fit, coef),
+         variance = map(fit, ~ summary(.x)$sigma^2)) %>%
+  mutate(which_coef = map(coefs, names)) %>%
+  unnest(coefs, variance, which_coef) %>%
+  pivot_wider(values_from = coefs, 
+              names_from = which_coef)
+```
+
+iv. What is the average estimate for the variance parameter across the 1000 simulations? Show both your code and the result.
+```{r, echo = T}
+# solution
+avg_sigmasq_hat <- sim_out %>% pull(variance) %>% mean()
+avg_sigmasq_hat
+```
+v. What would the average estimate of $\text{Var}(\hat{\beta})$ be across the 1000 simulations using the usual estimator $\hat{\sigma}^2\left(\mathbf{x'x}\right)^{-1}$? Show both your code and the result.
+```{r, echo = T}
+# the usual variance estimate
+x_mx <- model.matrix(sim_out$fit[[1]])
+xtx <- t(x_mx) %*% x_mx
+xtx_inv <- solve(xtx)
+xtx_inv*avg_sigmasq_hat
+```
+
+vi. What is the sample variance-covariance matrix of the estimates $\hat{\beta}$ across the 1000 simulations? In other words, what amount of variation and covariation was actually observed in simulation?
+```{r, echo = T}
+# observed variance-covariance in simulation
+sim_out %>% select(5:6) %>% var()
+```
+vii. Is the usual standard error for $\hat{\beta}_1$ an underestimate, accurate, or an overestimate relative to what was observed in simulation?
+
+The usual standard error is an *underestimate*: 0.047 compared with an observed variation of 0.083.
+
+viii. Using your answer to T2 and the simulation set-up, compute the theoretical variance of $\hat{\beta}$. Does the result you observed in the simulation match this? Show your codes and the variance-covariance matrix as output.
+```{r, echo = T}
+# solution
+sigma_mx <- diag(1 + x_vals^2/2)^2
+xtx_inv %*% t(x_mx) %*% sigma_mx %*% x_mx %*% xtx_inv
+```
+
+Yes, the result matches what was observed in simulation.
+
+\newpage
+## Code appendix
+
+```{r appendix, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```
