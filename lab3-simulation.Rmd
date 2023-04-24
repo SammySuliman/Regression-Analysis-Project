@@ -117,7 +117,7 @@ predictor_df %>% mutate(y = fx(x1, x2) + rnorm(n = samp_size, mean = 0, sd = 6))
 
 What are the true values of the model parameters $\beta$ and $\sigma^2$?
 
-$$\beta_0 = 0.5, \beta_1 = -2, \sigma^2 = 36$$
+$$\beta = \begin{bmatrix} 0 \\ 0.5 \\ -2 \end{bmatrix}, \sigma^2 = 36$$
 
 Here are plots of the marginal relationships between the response and predictors for one simulated dataset. Don't worry about following the plotting codes (you'll learn how to do this later in the course).
 
