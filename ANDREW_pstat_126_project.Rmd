@@ -1,0 +1,98 @@
+---
+title: "PSTAT 126 project"
+author: "Andrew Hansen"
+date: "2023-04-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(skimr)
+library(dplyr)
+library(caret)
+```
+
+```{r}
+performance <- read.csv("~/Desktop/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
+performance
+```
+```{r}
+skim(performance)
+```
+```{r}
+shapiro.test(performance$G3)
+cor.test(performance$absences, performance$G3, alternative = 'two.sided', method='pearson')
+```
+
+```{r}
+qqnorm(performance$G3)
+qqline(performance$G3)
+numeric_performance
+```
+```{r}
+numeric_performance <- performance %>% select_if(is.numeric)
+#x<-(numeric_performance$age)
+#y<-dnorm(numeric_performance$age)
+#plot(x,y)
+#barplot(numeric_performance$age)
+#qqnorm(numeric_performance$age)
+
+for (i in 1:ncol(numeric_performance)){
+par(mfrow=c(1,2))
+#x<-(numeric_performance[,1])
+#y<-dnorm(numeric_performance[,1])
+#plot(x,y)
+hist(numeric_performance[,i])
+#barplot(numeric_performance[,1])
+
+qqnorm(numeric_performance[,i])
+qqline(numeric_performance[,i])
+}
+
+
+```
+```{r}
+#normalize method 1
+
+#plot(x = numeric_performance$traveltime, y = dnorm(numeric_performance$traveltime), type="l", bty="n")
+scaled_numeric_performance1 <- as.data.frame(scale(numeric_performance))
+summary(scaled_numeric_performance1)
+for (i in 1:ncol(scaled_numeric_performance1)){
+  par(mfrow=c(1,2))
+  hist(scaled_numeric_performance1[,i])
+  qqnorm(scaled_numeric_performance1[,i])
+  qqline(scaled_numeric_performance1[,i])
+}
+
+
+#hist(scaled_numeric_performance$age)
+#plot(x = scaled_numeric_performance$age, y = dnorm(scaled_numeric_performance$age))
+norm_scaled_numeric_performance2 <- predict(scaled_numeric_performance2, as.data.frame(numeric_performance))
+#hist(norm_scaled_numeric_performance2$goout)
+#plot(x = norm_scaled_numeric_performance2$age, y = dnorm(norm_scaled_numeric_performance2$age))
+```
+```{r}
+#normalize method 2
+scaled_numeric_performance2 <- preProcess(as.data.frame(numeric_performance), method=c('range'))
+norm_scaled_numeric_performance2 <- predict(scaled_numeric_performance2, as.data.frame(numeric_performance))
+summary(norm_scaled_numeric_performance2)
+for (i in 1:ncol(norm_scaled_numeric_performance2)){
+  par(mfrow=c(1,2))
+  hist(norm_scaled_numeric_performance2[,i])
+  qqnorm(norm_scaled_numeric_performance2[,i])
+  qqline(norm_scaled_numeric_performance2[,i])
+}
+
+
+```
+
+```{r}
+#visual
+#descrpitpiomn
+#visual / chi square test / normality test
+#qqplots
+#test log of predictors
+#quantile transformation : map response to Normal dist 
+```
+
