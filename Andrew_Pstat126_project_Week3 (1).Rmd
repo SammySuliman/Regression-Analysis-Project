@@ -191,10 +191,10 @@ summary(new_model)
 ```
 
 ```{r}
-new_model2 <- lm(G3 ~ studytime + age + romanticno + studytime:romanticno, data=train3)
+new_model2 <- lm(G3 ~ studytime + age + romanticno + age:romanticno, data=train3)
 summary(new_model2)
 ```
-The 2 models we will be using are a multiple linear regression model, 'new_model' containing 2 numeric predictors, age and studytime, as well as 1 categorical predictor 'romanticno', and a second model 'new_model2', containing the same predictors as new_model, but with an additional interaction term between romanticno and studytime. We chose these 2 new models to test whether our assertion that the interaction terms were not needed was justified.
+The 2 models we will be using are a multiple linear regression model, 'new_model' containing 2 numeric predictors, age and studytime, as well as 1 categorical predictor 'romanticno', and a second model 'new_model2', containing the same predictors as new_model, but with an additional interaction term between romanticno and age. We chose these 2 new models to test whether our assertion that the interaction terms were not needed was justified.
 
 
 ```{r}
@@ -217,7 +217,7 @@ data.frame(
 )
 ```
 
-To evaluate the performance of our 2 models, we chose the metrics $R^2$, RMSE (Root Mean Squared Error), and MAE (Mean Absolute Error). $R^2$ is a measure of goodness of fit, whereas RMSE and MAE are measures of total error. In all 3 metrics, the extended model including the interaction term performed very slightly better to the model without the interaction term. This indicates that including an interaction term between the numeric and categorical variables in our dataset may have a positive effect on model fit in some cases.
+To evaluate the performance of our 2 models, we chose the metrics $R^2$, RMSE (Root Mean Squared Error), and MAE (Mean Absolute Error). $R^2$ is a measure of goodness of fit, whereas RMSE and MAE are measures of total error. In all 3 metrics, the extended model including the interaction term performed nearly identically to the model without the interaction term. This indicates that including an interaction term between the numeric and categorical variables in our dataset may not have a large effect on model fit in some cases.
 
 ## Statistical model
 
@@ -249,7 +249,7 @@ However, the residuals vs fit plot still suggests the linearity and variance ass
 res2 <- resid(new_model2)
 plot(fitted(new_model2), res2)
 ```
-With the exception of some outlying points which we will examine later, we see the assumptions of the linear model appear to be satisfied. So it seems that perhaps the issue with the 'backward' model is too many predictors. Our smaller model only contains the most significant predictors of our model (as judged by the p-values of these variables in our 'backward' summary), plus an interaction term that intuitively feels reasonable (being in a romantic relationship may affect performance even after controlling for studytime).
+With the exception of some outlying points which we will examine later, we see the assumptions of the linear model appear to be satisfied. So it seems that perhaps the issue with the 'backward' model is too many predictors. Our smaller model only contains the most significant predictors of our model (as judged by the p-values of these variables in our 'backward' summary), plus an interaction term that intuitively feels reasonable (being in a romantic relationship may affect performance even after controlling for age).
 
 Since the residuals vs fit plot appears to satisfy the most important assumptions of the linear model, we will adopt this model going forward.
 
@@ -291,8 +291,26 @@ for (i in 1:length(coef_p_values)) {
 }
 
 ```
+Even after applying the Bonferroni correction to control for the family-wise error rate, we see that all the coefficents on our model are statistically significant.
 
+## Goodness of Fit
 
+```{r}
+predictions3 <- predict(new_model2, data=test3)
+R2 <- R2(predictions, test3$G3)
 
+adj_r2 <- function(x) {
+   return (1 - ((1-R2)*(nobs(x)-1)/(nobs(x)-length(x$coefficients)-1)))
+}
+
+data.frame(
+  R2 = R2(predictions2, test3$G3),
+  Adj_R2 = adj_r2(new_model2)
+)
+
+```
+Both the unadjusted and adjusted $R^2$ values are rather low. This means that relatively little of the variance of the data can be explained by our model. However, $R^2$ is not necessarily the best metric for model fit as it increases with number of predictors, regardless of whether they are significant.
+
+## Influence
 
 
