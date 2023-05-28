@@ -8,6 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(readr)
+library(generics)
 library(skimr)
 library(dplyr)
 library(caret)
@@ -312,5 +313,57 @@ data.frame(
 Both the unadjusted and adjusted $R^2$ values are rather low. This means that relatively little of the variance of the data can be explained by our model. However, $R^2$ is not necessarily the best metric for model fit as it increases with number of predictors, regardless of whether they are significant.
 
 ## Influence
+
+```{r}
+a <- seq(1, 65928)
+p_caseinf <- augment(new_model2, train3) %>%
+  pivot_longer(cols = c(.resid, .hat, .cooksd)) %>%
+  ggplot(aes(x = a, y = value)) +
+  facet_wrap(~ name, scales = 'free_y', nrow = 3) + # looks better with vertical faceting
+  geom_point() +
+  geom_hline(aes(yintercept = 0)) + # add line at zero
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.25)) + # rotates and aligns labels
+  labs(x = '', y = '')
+
+p_caseinf
+```
+Let's identify the biggest outliers, leverage points, and points of greatest influence.
+
+```{r}
+# most influential point
+high_influence <- augment(new_model2, train3) %>%
+  slice_max(order_by = .cooksd, n = 1) %>%
+  mutate(row_index = row_number())
+```
+
+```{r}
+# most outlying points
+high_residuals <- augment(new_model2, train3) %>%
+  slice_max(order_by = .resid, n = 1) %>%
+  mutate(row_index = row_number()) 
+```
+
+```{r}
+# highest leverage point
+high_leverage <- augment(new_model2, train3) %>%
+  slice_max(order_by = .hat, n = 1) %>%
+  mutate(row_index = row_number()) 
+```
+
+```{r}
+b <- seq(1, 36)
+unusual_obs <- augment(new_model2, train3) %>% 
+  pivot_longer(cols = c(.resid, .hat, .cooksd)) %>%
+  group_by(name) %>%
+  slice_max(order_by = abs(value), n = 5) %>%
+  ungroup()
+p_caseinf + geom_point(data = unusual_obs, color = 'red', aes(x=b, y=value))
+```
+
+Now lets try to exclude observations with high leverage and high residuals from the training set and refit our model.
+```{r}
+high_leverage['.resid']
+```
+
 
 
