@@ -226,7 +226,6 @@ We already computed the model 'backward', through the backward selection algorit
 ```{r}
 res <- resid(backward)
 plot(fitted(backward), res)
-
 ```
 
 In the visual above we can see that variance is not constant so we try this procedure again, this time we transform the response variable by taking the square root of G3.
@@ -244,35 +243,56 @@ This time we notice more predictors are dropped by the backward selection algori
 res2 <- resid(backward2)
 plot(fitted(backward2), res2)
 ```
-However, the residuals vs fit plot still suggests the linearity and variance assumptions are violated. For curiosity, lets plot the residuals vs fit graph for a smaller-sized model. 
+However, the residuals vs fit plot still suggests the linearity and variance assumptions are violated. For curiosity, lets plot the residuals vs fit graph for our previously fitted smaller-sized model. 
 
 ```{r}
 res2 <- resid(new_model2)
 plot(fitted(new_model2), res2)
 ```
-With the exception of some outlying points which we will examine later, we see the assumptions of the linear model appear to be satisfied. So it seems that perhaps the issue with the 'backward' model is too many predictors. So we will set a p-value cutoff of  
+With the exception of some outlying points which we will examine later, we see the assumptions of the linear model appear to be satisfied. So it seems that perhaps the issue with the 'backward' model is too many predictors. Our smaller model only contains the most significant predictors of our model (as judged by the p-values of these variables in our 'backward' summary), plus an interaction term that intuitively feels reasonable (being in a romantic relationship may affect performance even after controlling for studytime).
+
+Since the residuals vs fit plot appears to satisfy the most important assumptions of the linear model, we will adopt this model going forward.
 
 ```{r}
-all <- lm(mpg ~ ., data=mtcars)
+overall_p <- function(model) {
+    f <- summary(model)$fstatistic
+    p <- pf(f[1],f[2],f[3],lower.tail=F)
+    attributes(p) <- NULL
+    return(p)
+}
 
-#perform backward stepwise regression
-both <- step(intercept_only, direction='both', scope=formula(all), trace=0)
+overall_p(new_model2)
+```
+
+The very low p-value confirms the significance of regression for our model.
+
+## Significance of Coefficients
+
+```{r}
+# Obtain the coefficient p-values
+coef_p_values <- summary(new_model2)$coefficients[, "Pr(>|t|)"]
+
+# Define the desired significance level (e.g., 0.05)
+alpha <- 0.05
+
+# Apply Bonferroni correction
+adjusted_alpha <- alpha / length(coef_p_values)
+
+# Perform the significance test for each coefficient
+significant_coeffs <- coef_p_values < adjusted_alpha
+
+# Print the results
+for (i in 1:length(coef_p_values)) {
+  if (significant_coeffs[i]) {
+    print(paste("Coefficient", names(coef_p_values)[i], "is significant."))
+  } else {
+    print(paste("Coefficient", names(coef_p_values)[i], "is not significant."))
+  }
+}
+
 ```
 
 
-```{r}
-summary(backward)$adj.r.squared
-```
-
-The adjusted R-squared value confirms that around one-third of the total variability of our data can be accounted for by our model, even after accounting for our large number of predictors. 
-
-
-To justify our model we use the F-test to check for global significance. When we look at the data provided by the summary of backward we can see an extremely low global p-value. This means that at least one of the predictors is significant. Now that we have established this crucial point, we will run hypothesis tests to examine the significance of some key predictors.
-
-```{r}
-model3 <- lm(G3 ~ ., data=train3)
-summary(model3)
-```
 
 
 
