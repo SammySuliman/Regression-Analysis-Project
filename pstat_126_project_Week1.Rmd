@@ -16,7 +16,8 @@ library(caret)
 
 ```{r, results='hide'}
 # Used to load data set. In read.csv paste personalized file path
-performance <- read.csv("C:/Users/Angel/OneDrive/Desktop/schoolwork/1. Pstat 126/pstat-126/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
+#performance <- read.csv("C:/Users/Angel/OneDrive/Desktop/schoolwork/1. Pstat 126/pstat-126/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
+performance <- read.csv("C:/Users/filto/Desktop/PSTAT_126/project2/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
 performance
 ```
 ```{r}
@@ -29,10 +30,10 @@ shapiro.test(performance$G3)
 ```
 Since the Shapiro-Wilk test results in P-Values less than 0.05, we conclude that G3, our response varible, is not normally distributed.
 
-Now that we identified that our responce is not normal, let's check all of our numeric independent variables for normality
+Now that we identified that our response is not normal, let's check all of our numeric independent variables for normality
 
 ```{r}
-#gives qq polt of G3 response variable
+#gives qq plot of G3 response variable
 qqnorm(performance$G3)
 qqline(performance$G3)
 ```
@@ -126,7 +127,7 @@ for (i in 1:ncol(norm_scaled_numeric_performance2)){
 
 
 ```
-To make sure of the variables we do another shapiro test and see that all the P-Values fo the variables are still under 0.05 and thus we once again fail to prove normality.
+To make sure of the variables we do another shapiro test and see that all the P-Values fo the variables are still under 0.05 and thus we once again fail to prove normality. However, as we learned in lecture, the linear model is fairly robust to the normality assumption, therefore, it is OK that our variables are not normally distributed
 ```{r}
 normScaledLoopShapiro2 <- list()
 for (i in 1:ncol(norm_scaled_numeric_performance2)){
@@ -143,11 +144,11 @@ corrMx <- cor(numeric_performance)
 corrMx
 ```
 
-To viszualize this correlation we created a heatmap.On the heatmpa the closer the clor is to White the more it is negatively correlated. the closer it is to a dark red the close it is to positivley correlated. This means when tou get closer to a more neautral color the (NOT WHITE) the lower the correlation
+To visualize this correlation we created a heatmap. On the heatmap the closer the color is to White the more it is negatively correlated. the closer it is to a dark red the close it is to positively correlated. This means when you get closer to a more neutral color the (NOT WHITE) the lower the correlation. 
 ```{r}
 heatmap(corrMx)
 ```
-Conclusion: As we can see, there are a few blocks that are heavily correlated. For example, Mother and Father education are correlated, G, G2, and G3 are all correlated as well as Weekend and Workday Drinking. there are a few areas that seem to have nearly no correlation such as freetime and Health. while there are a few that have a high negative correlation such as weekend alcohol consumption and all the G variables.
+Conclusion: As we can see, there are a few blocks that are heavily correlated. For example, Mother and Father education are correlated, G, G2, and G3 are all correlated as well as Weekend and Workday Drinking. there are a few areas that seem to have nearly no correlation such as freetime and Health. while there are a few that have a high negative correlation such as weekend alcohol consumption and all the G variables. High correlation indicates that variables are not independent from one another, therefore, we will need to drop some of them before building our model.
 
 
 

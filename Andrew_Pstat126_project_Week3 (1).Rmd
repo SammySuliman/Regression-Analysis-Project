@@ -1,0 +1,278 @@
+---
+title: "126project_05-08"
+author: "Andrew Hansen"
+date: "2023-05-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(skimr)
+library(dplyr)
+library(caret)
+library(tidyverse)
+library(ggplot2)
+#install.packages("olsrr")
+#install.packages("lmtest")
+#install.packages("GGally")
+#install.packages("MASS")
+library("lmtest")
+library("olsrr")
+library(GGally)
+library(MASS)
+library(recipes)
+library(Metrics)
+```
+
+```{r}
+#For Sammy to read the file in
+performance <- read.csv("C:/Users/filto/Desktop/PSTAT_126/project2/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
+
+#For Angel to read the file in
+#performance <- read.csv("C:/Users/Angel/OneDrive/Desktop/schoolwork/1. Pstat 126/pstat-126/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
+
+performance
+
+skim(performance)
+```
+
+Review: The UCI student performance dataset, collected from students at a secondary school in Portugal, has 16 numeric variables. Of those we have the three response variables, G1, G2, and G3, which represent the student's grades in each quarter respectively (for the sake of our project we will be using G3). There are 13 numeric predictor variables, and 17 categorical predictors.
+
+First, we will partition the data into a training and testing set for future validation purposes.
+
+```{r}
+#make this example reproducible
+set.seed(1)
+
+#create ID column
+performance$id <- 1:nrow(performance)
+
+#use 70% of dataset as training set and 30% as test set 
+train <- performance %>% dplyr::sample_frac(0.70)
+test  <- dplyr::anti_join(performance, train, by = 'id')
+```
+
+```{r, warning=FALSE, echo=FALSE}
+ggpairs(performance, columns = c('Medu', 'Fedu', 'Walc', 'Dalc', 'goout'))
+```
+
+We see from our pairsplot of a limited selection of numeric potential predictors, that the pairs of variables 'Dalc'/'Walc' (weekday / weekend consumption of alcohol) and 'Medu/Fedu' (mothers'/fathers' education level) are understandably highly correlated. So we will only consider 'Fedu' and/or 'Walc' as potential predictors in our model.
+
+```{r, echo=FALSE}
+train2 <- train %>% dplyr::select(-G1, -G2, -Medu, -Dalc)
+test2 <- test %>% dplyr::select(-G1, -G2, -Medu, -Dalc)
+train3 <- train2
+train3$school <- factor(train3$school, exclude = NULL)
+train3$sex <- factor(train3$sex, exclude = NULL)
+train3$address <- factor(train3$address, exclude = NULL)
+train3$famsize <- factor(train3$famsize, exclude = NULL)
+train3$Pstatus <- factor(train3$Pstatus, exclude = NULL)
+train3$Mjob <- factor(train3$Mjob, exclude = NULL)
+train3$Fjob <- factor(train3$Fjob, exclude = NULL)
+train3$reason <- factor(train3$reason, exclude = NULL)
+train3$paid <- factor(train3$paid, exclude = NULL)
+train3$guardian <- factor(train3$guardian, exclude = NULL)
+train3$schoolsup <- factor(train3$schoolsup, exclude = NULL)
+train3$famsup <- factor(train3$famsup, exclude = NULL)
+train3$activities <- factor(train3$activities, exclude = NULL)
+train3$nursery <- factor(train3$nursery, exclude = NULL)
+train3$higher <- factor(train3$higher, exclude = NULL)
+train3$internet <- factor(train3$internet, exclude = NULL)
+train3$romantic <- factor(train3$romantic, exclude = NULL)
+train3 <- model.matrix(~.-1, data=train3[c('school', 'sex', 'address', 'famsize', 'Pstatus', 'Mjob', 'Fjob', 'reason', 'paid', 'guardian', 'schoolsup', 'famsup', 'activities', 'nursery', 'higher', 'internet', 'romantic')],
+                       contrasts.arg = list(school = contrasts(train3$school, contrasts = FALSE),
+                                            sex = contrasts(train3$sex, contrasts = FALSE),
+                                            address = contrasts(train3$address, contrasts = FALSE),
+                                            famsize = contrasts(train3$famsize, contrasts = FALSE),
+                                            Pstatus = contrasts(train3$Pstatus, contrasts = FALSE),
+                                            Mjob = contrasts(train3$Mjob, contrasts = FALSE),
+                                            Fjob = contrasts(train3$Fjob, contrasts = FALSE),
+                                            reason = contrasts(train3$reason, contrasts = FALSE),
+                                            paid = contrasts(train3$paid, contrasts = FALSE),
+                                            guardian = contrasts(train3$guardian, contrasts = FALSE),
+                                            schoolsup = contrasts(train3$schoolsup, contrasts = FALSE),
+                                            famsup = contrasts(train3$famsup, contrasts = FALSE),
+                                            activities = contrasts(train3$activities, contrasts = FALSE),
+                                            nursery = contrasts(train3$nursery, contrasts = FALSE),
+                                            higher = contrasts(train3$higher, contrasts = FALSE),
+                                            internet = contrasts(train3$internet, contrasts = FALSE),
+                                            romantic = contrasts(train3$romantic, contrasts = FALSE)))
+train3 <- data.frame(train3)
+train3 <- train3 %>% dplyr::select(-schoolMS, -sexF, -addressU, -famsizeLE3, -PstatusT, -Mjobteacher, -Fjobteacher, -reasonhome, -guardianmother, -schoolsupyes, -famsupyes, -paidyes, -activitiesyes, -nurseryyes, -higheryes, -internetyes, -romanticyes)
+
+train3['G3'] <- train2['G3']
+numeric_performance <- train2 %>% select_if(is.numeric)
+df_list <- list(numeric_performance, train3)
+train3 <- df_list %>% reduce(full_join, by='G3')
+train3 <- train3 %>% dplyr::select(-id)
+```
+
+```{r, echo=FALSE}
+test3 <- test2
+test3$school <- factor(test3$school, exclude = NULL)
+test3$sex <- factor(test3$sex, exclude = NULL)
+test3$address <- factor(test3$address, exclude = NULL)
+test3$famsize <- factor(test3$famsize, exclude = NULL)
+test3$Pstatus <- factor(test3$Pstatus, exclude = NULL)
+test3$Mjob <- factor(test3$Mjob, exclude = NULL)
+test3$Fjob <- factor(test3$Fjob, exclude = NULL)
+test3$reason <- factor(test3$reason, exclude = NULL)
+test3$paid <- factor(test3$paid, exclude = NULL)
+test3$guardian <- factor(test3$guardian, exclude = NULL)
+test3$schoolsup <- factor(test3$schoolsup, exclude = NULL)
+test3$famsup <- factor(test3$famsup, exclude = NULL)
+test3$activities <- factor(test3$activities, exclude = NULL)
+test3$nursery <- factor(test3$nursery, exclude = NULL)
+test3$higher <- factor(test3$higher, exclude = NULL)
+test3$internet <- factor(test3$internet, exclude = NULL)
+test3$romantic <- factor(test3$romantic, exclude = NULL)
+test3 <- model.matrix(~.-1, data=test3[c('school', 'sex', 'address', 'famsize', 'Pstatus', 'Mjob', 'Fjob', 'reason', 'paid', 'guardian', 'schoolsup', 'famsup', 'activities', 'nursery', 'higher', 'internet', 'romantic')],
+                       contrasts.arg = list(school = contrasts(test3$school, contrasts = FALSE),
+                                            sex = contrasts(test3$sex, contrasts = FALSE),
+                                            address = contrasts(test3$address, contrasts = FALSE),
+                                            famsize = contrasts(test3$famsize, contrasts = FALSE),
+                                            Pstatus = contrasts(test3$Pstatus, contrasts = FALSE),
+                                            Mjob = contrasts(test3$Mjob, contrasts = FALSE),
+                                            Fjob = contrasts(test3$Fjob, contrasts = FALSE),
+                                            reason = contrasts(test3$reason, contrasts = FALSE),
+                                            paid = contrasts(test3$paid, contrasts = FALSE),
+                                            guardian = contrasts(test3$guardian, contrasts = FALSE),
+                                            schoolsup = contrasts(test3$schoolsup, contrasts = FALSE),
+                                            famsup = contrasts(test3$famsup, contrasts = FALSE),
+                                            activities = contrasts(test3$activities, contrasts = FALSE),
+                                            nursery = contrasts(test3$nursery, contrasts = FALSE),
+                                            higher = contrasts(test3$higher, contrasts = FALSE),
+                                            internet = contrasts(test3$internet, contrasts = FALSE),
+                                            romantic = contrasts(test3$romantic, contrasts = FALSE)))
+test3 <- data.frame(test3)
+test3 <- test3 %>% dplyr::select(-schoolMS, -sexF, -addressU, -famsizeLE3, -PstatusT, -Mjobteacher, -Fjobteacher, -reasonhome, -guardianmother, -schoolsupyes, -famsupyes, -paidyes, -activitiesyes, -nurseryyes, -higheryes, -internetyes, -romanticyes)
+
+test3['G3'] <- test2['G3']
+numeric_performance <- test2 %>% select_if(is.numeric)
+df_list <- list(numeric_performance, test3)
+test3 <- df_list %>% reduce(full_join, by='G3')
+test3 <- test3 %>% dplyr::select(-id)
+```
+
+Here we performed one-hot encoding on all of the categorical variables as part of feature engineering.
+
+
+```{r, warning=FALSE, echo=FALSE}
+ggpairs(train3, columns = c('Mjobat_home', 'Fjobat_home', 'Mjobhealth', 'Fjobhealth'))
+```
+Correlation between Mjob / Fjob factors is not as strong as we expected - we don't have to drop those columns 
+We can now move on to fitting a model with all of our predictor variables.
+
+```{r}
+model3 <- lm(G3 ~ ., data=train3)
+summary(model3)
+```
+
+## Variable Selection
+
+Now that we have fitted the full model with all of our predictors, we want to try backwards selection to reduce the model so it only has statistically significant predictors. We will use AIC (Akaike information criterion) as our metric to evaluate this to maximize predictive power.
+
+```{r}
+backward <- stepAIC(model3, direction='backward', trace=0)
+summary(backward)
+```
+The only variable that was dropped by the backward selection algorithm was reasonreputation. It's large p-value in the full model indicated that it was not a statistically significant predictor. 
+
+## Interaction effects
+
+We have decided not to use interaction terms for the following reasons: Firstly, it is not clear that the numeric variables will have a different association with the response at different levels of the categorical factors, for example, why the same amount of studytime would have a different association with the response based on whether or not the subject is in a romantic relationship, etc. Additionally, we already have a large amount of terms in our model, some of them with relatively high p-values (for example, goout). So it is not clear that interaction terms involving these predictors will be statistically significant.
+
+## Computation Model
+
+```{r}
+new_model <- lm(G3 ~ studytime + age + romanticno, data=train3)
+summary(new_model)
+```
+
+```{r}
+new_model2 <- lm(G3 ~ studytime + age + romanticno + studytime:romanticno, data=train3)
+summary(new_model2)
+```
+The 2 models we will be using are a multiple linear regression model, 'new_model' containing 2 numeric predictors, age and studytime, as well as 1 categorical predictor 'romanticno', and a second model 'new_model2', containing the same predictors as new_model, but with an additional interaction term between romanticno and studytime. We chose these 2 new models to test whether our assertion that the interaction terms were not needed was justified.
+
+
+```{r}
+predictions <- predict(new_model, test3)
+
+data.frame(
+  R2 = R2(predictions, test3$G3),
+  RMSE = rmse(predictions, test3$G3),
+  MAE = mae(predictions, test3$G3)
+)
+```
+
+```{r}
+predictions2 <- predict(new_model2, test3)
+
+data.frame(
+  R2 = R2(predictions2, test3$G3),
+  RMSE = rmse(predictions2, test3$G3),
+  MAE = mae(predictions2, test3$G3)
+)
+```
+
+To evaluate the performance of our 2 models, we chose the metrics $R^2$, RMSE (Root Mean Squared Error), and MAE (Mean Absolute Error). $R^2$ is a measure of goodness of fit, whereas RMSE and MAE are measures of total error. In all 3 metrics, the extended model including the interaction term performed very slightly better to the model without the interaction term. This indicates that including an interaction term between the numeric and categorical variables in our dataset may have a positive effect on model fit in some cases.
+
+## Statistical model
+
+We already computed the model 'backward', through the backward selection algorithm, starting with the full model involving all predictors in the training data, and testing p-values to drop the least significant predictors (in this case, only 1). To justify our model, we will plot a graph of residuals against fit to check whether the core assumptions of the linear model (linearity and constant variance) are satisfied.
+
+```{r}
+res <- resid(backward)
+plot(fitted(backward), res)
+
+```
+
+In the visual above we can see that variance is not constant so we try this procedure again, this time we transform the response variable by taking the square root of G3.
+
+```{r}
+model4 <- lm(sqrt(G3) ~ ., data=(train3))
+summary(model4)
+backward2 <- stepAIC(model4, direction='backward', trace=0)
+summary(backward2)
+```
+
+This time we notice more predictors are dropped by the backward selection algorithm, goout, famsizeGT3, PstatusA, in addition to reasonreputation.
+
+```{r}
+res2 <- resid(backward2)
+plot(fitted(backward2), res2)
+```
+However, the residuals vs fit plot still suggests the linearity and variance assumptions are violated. For curiosity, lets plot the residuals vs fit graph for a smaller-sized model. 
+
+```{r}
+res2 <- resid(new_model2)
+plot(fitted(new_model2), res2)
+```
+With the exception of some outlying points which we will examine later, we see the assumptions of the linear model appear to be satisfied. So it seems that perhaps the issue with the 'backward' model is too many predictors. So we will set a p-value cutoff of  
+
+```{r}
+all <- lm(mpg ~ ., data=mtcars)
+
+#perform backward stepwise regression
+both <- step(intercept_only, direction='both', scope=formula(all), trace=0)
+```
+
+
+```{r}
+summary(backward)$adj.r.squared
+```
+
+The adjusted R-squared value confirms that around one-third of the total variability of our data can be accounted for by our model, even after accounting for our large number of predictors. 
+
+
+To justify our model we use the F-test to check for global significance. When we look at the data provided by the summary of backward we can see an extremely low global p-value. This means that at least one of the predictors is significant. Now that we have established this crucial point, we will run hypothesis tests to examine the significance of some key predictors.
+
+```{r}
+model3 <- lm(G3 ~ ., data=train3)
+summary(model3)
+```
+
+
+

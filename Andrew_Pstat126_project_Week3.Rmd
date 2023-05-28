@@ -1,0 +1,88 @@
+---
+title: "126project_05-08"
+author: "Andrew Hansen"
+date: "2023-05-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(skimr)
+library(dplyr)
+library(caret)
+library(tidyverse)
+library(ggplot2)
+#install.packages("olsrr")
+#install.packages("lmtest")
+#install.packages("GGally")
+#install.packages("MASS")
+library("lmtest")
+library("olsrr")
+library(GGally)
+library(MASS)
+```
+
+```{r}
+performance <- read.csv("C:/Users/filto/Desktop/PSTAT_126/project2/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
+performance
+
+skim(performance)
+```
+
+Review: The UCI student performance dataset, collected from students at a secondary school in Portugal, has 16 numeric variables. Of those we have the three response variables, G1, G2, and G3, which represent the student's grades in each quarter respectively (for the sake of our project we will be using G3). There are 13 numeric predictor variables, and 17 categorical predictors.
+
+First, we will partition the data into a training and testing set for future validation purposes.
+
+```{r}
+#make this example reproducible
+set.seed(1)
+
+#create ID column
+performance$id <- 1:nrow(performance)
+
+#use 70% of dataset as training set and 30% as test set 
+train <- performance %>% dplyr::sample_frac(0.70)
+test  <- dplyr::anti_join(performance, train, by = 'id')
+```
+
+```{r, warning=FALSE, echo=FALSE}
+ggpairs(performance, columns = c('Medu', 'Fedu', 'Walc', 'Dalc', 'goout'))
+```
+
+We see from our pairsplot of a limited selection of numeric potential predictors, that the pairs of variables 'Dalc'/'Walc' (weekday / weekend consumption of alcohol) and 'Medu/Fedu' (mothers'/fathers' education level) are understandably highly correlated. So we will only consider 'Fedu' and/or 'Walc' as potential predictors in our model.
+
+```{r}
+
+```
+
+
+```{r}
+train2 <- train %>% dplyr::select(-G1, -G2, -Medu, -Dalc)
+test2 <- test %>% dplyr::select(-G1, -G2, -Medu, -Dalc)
+
+model3 <- lm(G3 ~ ., data=train2)
+summary(model3)
+```
+
+R automatically performs feature encoding on categorical variables.
+
+## Variable Selection
+
+Now that we have fitted the full model with all of our predictors, we want to try backwards selection to reduce the model so it only has statistically significant predictors. We will use AIC (Akaike information criterion) as our metric to evaluate this to maximize predictive power.
+
+```{r}
+backward <- stepAIC(model3, direction='backward', trace=0)
+summary(backward)
+```
+## Interaction effects
+
+We see that even after using backward selection to select for the most significant predictors, some of the predictors included in our reduced model exhibit very large p-values, for example, the Fjob variables. This may be because of interaction effects between these variables and others. So we want add some interaction terms between them.
+
+```{r}
+rec <- recipe(flipper_length_mm ~ ., data = penguins)
+
+int_mod_1 <- rec %>%
+  step_interact(terms = ~ bill_depth_mm:bill_length_mm)
+```
+
