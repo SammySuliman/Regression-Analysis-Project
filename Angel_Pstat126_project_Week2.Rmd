@@ -131,7 +131,7 @@ Now let's examine what the individual response is for students with the oldest a
 
 ```{r}
 new_data2 <- data.frame(age = 22)
-predict(fit2, newdata = new_data, interval = 'prediction', level = 0.95)
+predict(fit2, newdata = new_data2, interval = 'prediction', level = 0.95)
 ```
 ```{r}
 predict(fit2, newdata = new_data2, interval = 'confidence', level = 0.95)[2]^2

@@ -1,8 +1,10 @@
 ---
-title: "126project_05-08"
-author: "Andrew Hansen"
+title: "126 Final Project Step 3"
+author: "Angel Abdelnour, Andrew Hansen, Sammy Suliman"
 date: "2023-05-09"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -26,16 +28,16 @@ library(recipes)
 library(Metrics)
 ```
 
-```{r}
+```{r, echo=FALSE}
 #For Sammy to read the file in
 performance <- read.csv("C:/Users/filto/Desktop/PSTAT_126/project2/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
 
 #For Angel to read the file in
 #performance <- read.csv("C:/Users/Angel/OneDrive/Desktop/schoolwork/1. Pstat 126/pstat-126/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
 
-performance
+#performance
 
-skim(performance)
+#skim(performance)
 ```
 
 Review: The UCI student performance dataset, collected from students at a secondary school in Portugal, has 16 numeric variables. Of those we have the three response variables, G1, G2, and G3, which represent the student's grades in each quarter respectively (for the sake of our project we will be using G3). There are 13 numeric predictor variables, and 17 categorical predictors.
@@ -60,7 +62,9 @@ ggpairs(performance, columns = c('Medu', 'Fedu', 'Walc', 'Dalc', 'goout'))
 
 We see from our pairsplot of a limited selection of numeric potential predictors, that the pairs of variables 'Dalc'/'Walc' (weekday / weekend consumption of alcohol) and 'Medu/Fedu' (mothers'/fathers' education level) are understandably highly correlated. So we will only consider 'Fedu' and/or 'Walc' as potential predictors in our model.
 
-```{r, echo=FALSE}
+We will now perform one-hot encoding on all of the categorical variables as part of feature engineering.
+
+```{r, echo=FALSE, warning=FALSE}
 train2 <- train %>% dplyr::select(-G1, -G2, -Medu, -Dalc)
 test2 <- test %>% dplyr::select(-G1, -G2, -Medu, -Dalc)
 train3 <- train2
@@ -109,7 +113,7 @@ train3 <- df_list %>% reduce(full_join, by='G3')
 train3 <- train3 %>% dplyr::select(-id)
 ```
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE, verbose=TRUE}
 test3 <- test2
 test3$school <- factor(test3$school, exclude = NULL)
 test3$sex <- factor(test3$sex, exclude = NULL)
@@ -156,8 +160,6 @@ test3 <- df_list %>% reduce(full_join, by='G3')
 test3 <- test3 %>% dplyr::select(-id)
 ```
 
-Here we performed one-hot encoding on all of the categorical variables as part of feature engineering.
-
 
 ```{r, warning=FALSE, echo=FALSE}
 ggpairs(train3, columns = c('Mjobat_home', 'Fjobat_home', 'Mjobhealth', 'Fjobhealth'))
@@ -174,7 +176,7 @@ summary(model3)
 
 Now that we have fitted the full model with all of our predictors, we want to try backwards selection to reduce the model so it only has statistically significant predictors. We will use AIC (Akaike information criterion) as our metric to evaluate this to maximize predictive power.
 
-```{r}
+```{r, warning=FALSE}
 backward <- stepAIC(model3, direction='backward', trace=0)
 summary(backward)
 ```
@@ -186,19 +188,19 @@ We have decided not to use interaction terms for the following reasons: Firstly,
 
 ## Computation Model
 
-```{r}
+```{r, warning=FALSE}
 new_model <- lm(G3 ~ studytime + age + romanticno, data=train3)
 summary(new_model)
 ```
 
-```{r}
+```{r, warning=FALSE}
 new_model2 <- lm(G3 ~ studytime + age + romanticno + age:romanticno, data=train3)
 summary(new_model2)
 ```
 The 2 models we will be using are a multiple linear regression model, 'new_model' containing 2 numeric predictors, age and studytime, as well as 1 categorical predictor 'romanticno', and a second model 'new_model2', containing the same predictors as new_model, but with an additional interaction term between romanticno and age. We chose these 2 new models to test whether our assertion that the interaction terms were not needed was justified.
 
 
-```{r}
+```{r, warning=FALSE}
 predictions <- predict(new_model, test3)
 
 data.frame(
@@ -208,7 +210,7 @@ data.frame(
 )
 ```
 
-```{r}
+```{r, warning=FALSE}
 predictions2 <- predict(new_model2, test3)
 
 data.frame(
@@ -231,22 +233,22 @@ plot(fitted(backward), res)
 
 In the visual above we can see that variance is not constant so we try this procedure again, this time we transform the response variable by taking the square root of G3.
 
-```{r}
+```{r, echo=TRUE, results='hide'}
 model4 <- lm(sqrt(G3) ~ ., data=(train3))
 summary(model4)
 backward2 <- stepAIC(model4, direction='backward', trace=0)
 summary(backward2)
 ```
 
-This time we notice more predictors are dropped by the backward selection algorithm, goout, famsizeGT3, PstatusA, in addition to reasonreputation.
+This time more predictors are dropped by the backward selection algorithm, goout, famsizeGT3, PstatusA, in addition to reasonreputation.
 
-```{r}
+```{r, echo=FALSE}
 res2 <- resid(backward2)
 plot(fitted(backward2), res2)
 ```
 However, the residuals vs fit plot still suggests the linearity and variance assumptions are violated. For curiosity, lets plot the residuals vs fit graph for our previously fitted smaller-sized model. 
 
-```{r}
+```{r, echo=FALSE}
 res2 <- resid(new_model2)
 plot(fitted(new_model2), res2)
 ```
@@ -262,14 +264,14 @@ overall_p <- function(model) {
     return(p)
 }
 
-overall_p(new_model2)
+print(paste("P-value:", overall_p(new_model2)))
 ```
 
 The very low p-value confirms the significance of regression for our model.
 
 ## Significance of Coefficients
 
-```{r}
+```{r, echo=FALSE}
 # Obtain the coefficient p-values
 coef_p_values <- summary(new_model2)$coefficients[, "Pr(>|t|)"]
 
@@ -296,7 +298,7 @@ Even after applying the Bonferroni correction to control for the family-wise err
 
 ## Goodness of Fit
 
-```{r}
+```{r, echo=FALSE}
 predictions3 <- predict(new_model2, data=test3)
 R2 <- R2(predictions, test3$G3)
 
@@ -314,7 +316,7 @@ Both the unadjusted and adjusted $R^2$ values are rather low. This means that re
 
 ## Influence
 
-```{r}
+```{r, echo=FALSE}
 a <- seq(1, 65928)
 p_caseinf <- broom::augment(new_model2, train3) %>%
   pivot_longer(cols = c(.resid, .hat, .cooksd)) %>%
@@ -330,10 +332,11 @@ p_caseinf
 Let's identify the biggest outliers, leverage points, and points of greatest influence.
 
 ```{r}
-# most influential point
+# most influential points
 high_influence <- augment(new_model2, train3) %>%
   slice_max(order_by = .cooksd, n = 5) %>%
   mutate(row_index = row_number())
+high_influence
 ```
 
 ```{r}
@@ -341,13 +344,15 @@ high_influence <- augment(new_model2, train3) %>%
 high_residuals <- augment(new_model2, train3) %>%
   slice_max(order_by = .resid, n = 5) %>%
   mutate(row_index = row_number()) 
+high_residuals
 ```
 
 ```{r}
-# highest leverage point
+# highest leverage points
 high_leverage <- augment(new_model2, train3) %>%
   slice_max(order_by = .hat, n = 5) %>%
   mutate(row_index = row_number()) 
+high_leverage
 ```
 
 ```{r}
@@ -369,13 +374,13 @@ high_leverage['.resid']
 (high_residuals['.hat'])
 ```
 We notice there is a single 'high leverage' observation with higher than average residuals. We will test the effect of retraining our model without this observation.
-```{r}
+```{r, echo=FALSE}
 high_resid_high_leverage <- high_leverage[1,]
-print(high_resid_high_leverage$.cooksd)
+print(paste("Cook's distance:", high_resid_high_leverage$.cooksd))
 ```
 This observation has a relatively large Cook's distance, which indicates it is relatively influential to the model fit.
 
-```{r}
+```{r, echo=FALSE}
 # we see absences = 12, age = 22 ... use this to find index of observation in original training set
 train3[train3$absences == 12 & train3$age == 22,]
 # row index = 1596
@@ -387,7 +392,7 @@ new_model3 <- lm(G3 ~ studytime + age + romanticno + age:romanticno, data=train4
 summary(new_model3)
 ```
 
-```{r}
+```{r, echo=FALSE}
 # Obtain the coefficient p-values
 coef_p_values <- summary(new_model3)$coefficients[, "Pr(>|t|)"]
 
@@ -413,3 +418,30 @@ for (i in 1:length(coef_p_values)) {
 ## Interpretation
 
 It appears that dropping this single observation was enough to change the values of the coefficients on the fitted model, but not enough to shift whether they were statistically significant.
+
+## Confidence / Prediction Intervals for $\hat{Y}$
+
+Next, we will examine a confidence interval for the mean of the response (G3) at the mean value of the numeric predictor variables and at the most common value of the categorical predictor values:
+```{r, echo=FALSE}
+freq_value <- function(x) {
+as.numeric(tail(names(sort(table(x))), 1))
+}
+```
+
+```{r, echo=FALSE}
+x_bar <- c(freq_value(test3$studytime), mean(test3$age), freq_value(test3$romanticno))
+new_data <- data.frame(studytime = x_bar[1], age = x_bar[2], romanticno = x_bar[3])
+```
+
+```{r, echo=FALSE}
+predict(new_model2, newdata = new_data, interval = 'confidence', level = 0.95)
+```
+With 95% confidence, the final grade for a student with age equal to the mean and with the most common relationship status (single), and in the most common studytime bracket (2-5 hours) is between 11.85346 and 11.9243.
+
+```{r, echo=FALSE}
+new_data2 <- data.frame(age = 22, studytime = 3, romanticno = 0)
+predict(new_model2, newdata = new_data2, interval = 'prediction', level = 0.95)
+```
+With 95% confidence, the final grade for a student aged 22, in a relationship, and who studies between 5-10 hours a week is between 7.316517 and 15.6258.
+
+## Conclusion
