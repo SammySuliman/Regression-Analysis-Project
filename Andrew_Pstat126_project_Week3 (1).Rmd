@@ -316,7 +316,7 @@ Both the unadjusted and adjusted $R^2$ values are rather low. This means that re
 
 ```{r}
 a <- seq(1, 65928)
-p_caseinf <- augment(new_model2, train3) %>%
+p_caseinf <- broom::augment(new_model2, train3) %>%
   pivot_longer(cols = c(.resid, .hat, .cooksd)) %>%
   ggplot(aes(x = a, y = value)) +
   facet_wrap(~ name, scales = 'free_y', nrow = 3) + # looks better with vertical faceting
@@ -332,30 +332,30 @@ Let's identify the biggest outliers, leverage points, and points of greatest inf
 ```{r}
 # most influential point
 high_influence <- augment(new_model2, train3) %>%
-  slice_max(order_by = .cooksd, n = 1) %>%
+  slice_max(order_by = .cooksd, n = 5) %>%
   mutate(row_index = row_number())
 ```
 
 ```{r}
 # most outlying points
 high_residuals <- augment(new_model2, train3) %>%
-  slice_max(order_by = .resid, n = 1) %>%
+  slice_max(order_by = .resid, n = 5) %>%
   mutate(row_index = row_number()) 
 ```
 
 ```{r}
 # highest leverage point
 high_leverage <- augment(new_model2, train3) %>%
-  slice_max(order_by = .hat, n = 1) %>%
+  slice_max(order_by = .hat, n = 5) %>%
   mutate(row_index = row_number()) 
 ```
 
 ```{r}
-b <- seq(1, 36)
-unusual_obs <- augment(new_model2, train3) %>% 
+b <- seq(1, 47)
+unusual_obs <- broom::augment(new_model2, train3) %>% 
   pivot_longer(cols = c(.resid, .hat, .cooksd)) %>%
   group_by(name) %>%
-  slice_max(order_by = abs(value), n = 5) %>%
+  slice_max(order_by = abs(value), n = 10) %>%
   ungroup()
 p_caseinf + geom_point(data = unusual_obs, color = 'red', aes(x=b, y=value))
 ```
@@ -365,5 +365,51 @@ Now lets try to exclude observations with high leverage and high residuals from 
 high_leverage['.resid']
 ```
 
+```{r}
+(high_residuals['.hat'])
+```
+We notice there is a single 'high leverage' observation with higher than average residuals. We will test the effect of retraining our model without this observation.
+```{r}
+high_resid_high_leverage <- high_leverage[1,]
+print(high_resid_high_leverage$.cooksd)
+```
+This observation has a relatively large Cook's distance, which indicates it is relatively influential to the model fit.
 
+```{r}
+# we see absences = 12, age = 22 ... use this to find index of observation in original training set
+train3[train3$absences == 12 & train3$age == 22,]
+# row index = 1596
+train4 <- train3[-c(1596),]
+```
 
+```{r}
+new_model3 <- lm(G3 ~ studytime + age + romanticno + age:romanticno, data=train4)
+summary(new_model3)
+```
+
+```{r}
+# Obtain the coefficient p-values
+coef_p_values <- summary(new_model3)$coefficients[, "Pr(>|t|)"]
+
+# Define the desired significance level (e.g., 0.05)
+alpha <- 0.05
+
+# Apply Bonferroni correction
+adjusted_alpha <- alpha / length(coef_p_values)
+
+# Perform the significance test for each coefficient
+significant_coeffs <- coef_p_values < adjusted_alpha
+
+# Print the results
+for (i in 1:length(coef_p_values)) {
+  if (significant_coeffs[i]) {
+    print(paste("Coefficient", names(coef_p_values)[i], "is significant."))
+  } else {
+    print(paste("Coefficient", names(coef_p_values)[i], "is not significant."))
+  }
+}
+```
+
+## Interpretation
+
+It appears that dropping this single observation was enough to change the values of the coefficients on the fitted model, but not enough to shift whether they were statistically significant.
