@@ -1,8 +1,10 @@
 ---
-title: "PSTAT 126 project_Week1"
+title: "PSTAT 126 Project Step 1"
 author: "Angel Abdulnour, Andrew Hansen, Sammy Suliman"
 date: "2023-04-29"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -15,22 +17,28 @@ library(caret)
 
 
 ```{r, results='hide'}
-# Used to load data set. In read.csv paste personalized file path
-#performance <- read.csv("C:/Users/Angel/OneDrive/Desktop/schoolwork/1. Pstat 126/pstat-126/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
 performance <- read.csv("C:/Users/filto/Desktop/PSTAT_126/project2/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
-performance
+#performance
 ```
-```{r}
-#gives a summary of our data including number of rows, number of columns, and how many numeric and character variables there are.
+
+Our dataset is the student performance dataset, measuring the association between student's grades and a list of 33 numeric and categorical variables.
+
+Let's get a summary of our data including number of rows, number of columns, and how many numeric and character variables there are.
+
+```{r, results='hide'}
 skim(performance)
 ```
+Our dataset consists of 649 observations of different students from 2 different secondary schools. We will designate our response variable (what we want to gather inferences / predictions) off of, to be `G3`, the final grades received by each student.
+
+For the purposes of our regression, we want to test the normality of our response variable. We will do this through a statistical test (Shapiro-Wilk) and by creating QQ plots of the response.
+
 ```{r}
 # tests the normality of the G3 response variable
 shapiro.test(performance$G3)
 ```
 Since the Shapiro-Wilk test results in P-Values less than 0.05, we conclude that G3, our response varible, is not normally distributed.
 
-Now that we identified that our response is not normal, let's check all of our numeric independent variables for normality
+Now that we identified that our response is not normal, let's check all of our numeric independent variables for normality.
 
 ```{r}
 #gives qq plot of G3 response variable
@@ -40,7 +48,7 @@ qqline(performance$G3)
 
 Numeric performace is a subset of Performance which focuses solely on the numeric data.
 With it we can create Histogram and qq plots of the 16 numeric variables
-```{r}
+```{r, results='hide'}
 numeric_performance <- performance %>% select_if(is.numeric)
 #x<-(numeric_performance$age)
 #y<-dnorm(numeric_performance$age)
@@ -64,7 +72,7 @@ qqline(numeric_performance[,i])
 
 ```
 Looking at the QQ plots and histograms above one can clearly tell they are not normally distributed. However, just to make sure we ran the shapiro test and we can see that all the variables have a p-value less than 0.05 meaning none of them are normally distributed.
-```{r}
+```{r, results='hide'}
 loopShapiro <- list()
 for (i in 1:ncol(numeric_performance)){
 loopShapiro[i] <- shapiro.test(numeric_performance[,i])$p.value
@@ -82,7 +90,7 @@ scaled_numeric_performance1 <- as.data.frame(scale(numeric_performance))
 summary(scaled_numeric_performance1)
 
 ```
-Next we create histograms and QQ plots of scaled_numeric_performance1. However many of the variables clearly show distributions that are not normal. the only ones that appear normal are G1, G2, and G3.
+Next we create histograms and QQ plots of scaled_numeric_performance1. However many of the variables clearly show distributions that are not normal. the only ones that appear symmetric+bell-shaped are G1, G2, and G3.
 ```{r}
 for (i in 1:ncol(scaled_numeric_performance1)){
   par(mfrow=c(1,2))
@@ -90,15 +98,9 @@ for (i in 1:ncol(scaled_numeric_performance1)){
   qqnorm(scaled_numeric_performance1[,i])
   qqline(scaled_numeric_performance1[,i])
 }
-
-
-#hist(scaled_numeric_performance$age)
-#plot(x = scaled_numeric_performance$age, y = dnorm(scaled_numeric_performance$age))
-#norm_scaled_numeric_performance1 <- predict(scaled_numeric_performance1, as.data.frame(numeric_performance))
-#hist(norm_scaled_numeric_performance2$goout)
-#plot(x = norm_scaled_numeric_performance2$age, y = dnorm(norm_scaled_numeric_performance2$age))
 ```
-To make sure our information is accurate we run Shpairo tests on scaled_numeric_performance1 and find that all, including G1, G2, G3, are not normal since their P-Values are all under 0.05.
+
+To make sure our information is accurate we run Shapiro tests on scaled_numeric_performance1 and find that all, including G1, G2, G3, are not normal since their P-Values are all under 0.05.
 ```{r}
 scaledLoopShapiro1 <- list()
 for (i in 1:ncol(scaled_numeric_performance1)){
@@ -117,34 +119,47 @@ summary(norm_scaled_numeric_performance2)
 ```
 
 Using the data from norm_scaled_numeric_performance2 we create histograms and QQ plots to try to gauge the normality. Once again we see the G1, G2, and G3 variables be normal but not the others. 
-```{r}
+```{r, results='hide'}
 for (i in 1:ncol(norm_scaled_numeric_performance2)){
   par(mfrow=c(1,2))
   hist(norm_scaled_numeric_performance2[,i])
   qqnorm(norm_scaled_numeric_performance2[,i])
   qqline(norm_scaled_numeric_performance2[,i])
 }
-
-
 ```
-To make sure of the variables we do another shapiro test and see that all the P-Values fo the variables are still under 0.05 and thus we once again fail to prove normality. However, as we learned in lecture, the linear model is fairly robust to the normality assumption, therefore, it is OK that our variables are not normally distributed
-```{r}
+
+```{r, results='markup'}
+# Example frequency histogram for age + scaled qqplot
+par(mfrow=c(1,2))
+  hist(numeric_performance[,1], main="Age Frequency", xlab="Age (yrs)", ylab="Frequency")
+  qqnorm(norm_scaled_numeric_performance2[,1])
+  qqline(norm_scaled_numeric_performance2[,1])
+```
+
+To make sure of the variables we do another shapiro test and see that all the p-values for the variables are still under 0.05 and thus we once again fail to prove normality. However, as we learned in lecture, the linear model is fairly robust to the normality assumption, therefore, it is OK that our variables are not normally distributed.
+
+```{r, results='hide'}
 normScaledLoopShapiro2 <- list()
 for (i in 1:ncol(norm_scaled_numeric_performance2)){
 normScaledLoopShapiro2[i] <- shapiro.test(norm_scaled_numeric_performance2[,i])$p.value
 
 }
 normScaledLoopShapiro2
-
 ```
 
-We create a correlation matrix that gives us a numerical value for how much each variable correlates with the other variables. As we can see, when a variable correlates with itself the number is 1.
+Let's graph plots between independent variables and the response that we think might have a relationship.
+```{r}
+plot(numeric_performance$age, numeric_performance$G3, col='red', xlab = 'age', ylab = 'final grades', main = 'Student performance by age')
+```
+
+
+To test for independence, we create a correlation matrix that gives us a numerical value for how much each variable correlates with the other variables. As we can see, when a variable correlates with itself the number is 1.
 ```{r}
 corrMx <- cor(numeric_performance)
 corrMx
 ```
 
-To visualize this correlation we created a heatmap. On the heatmap the closer the color is to White the more it is negatively correlated. the closer it is to a dark red the close it is to positively correlated. This means when you get closer to a more neutral color the (NOT WHITE) the lower the correlation. 
+To visualize this correlation we created a heatmap. On the heatmap the closer the color is to White the more it is negatively correlated. the closer it is to a dark red the close it is to positively correlated. This means when you get closer to a more neutral color the lower the correlation. 
 ```{r}
 heatmap(corrMx)
 ```

@@ -60,13 +60,19 @@ test  <- dplyr::anti_join(performance, train, by = 'id')
 ggpairs(performance, columns = c('Medu', 'Fedu', 'Walc', 'Dalc', 'goout'))
 ```
 
-We see from our pairsplot of a limited selection of numeric potential predictors, that the pairs of variables 'Dalc'/'Walc' (weekday / weekend consumption of alcohol) and 'Medu/Fedu' (mothers'/fathers' education level) are understandably highly correlated. So we will only consider 'Fedu' and/or 'Walc' as potential predictors in our model.
+We see from our pairsplot of a limited selection of numeric potential predictors, that the pairs of variables 'Dalc'/'Walc' (weekday / weekend consumption of alcohol) and 'Medu/Fedu' (mothers'/fathers' education level) are understandably highly correlated. So we will only consider one of these pairs as potential predictors in our model.
+
+```{r}
+numeric_performance <- performance %>% select_if(is.numeric)
+summary(lm(G3 ~ ., data=numeric_performance))
+```
+We see that Dalc appears to be a more significant predictor than Walc based on p-values, so we will drop Walc and Medu from our dataset. 
 
 We will now perform one-hot encoding on all of the categorical variables as part of feature engineering.
 
 ```{r, echo=FALSE, warning=FALSE}
-train2 <- train %>% dplyr::select(-G1, -G2, -Medu, -Dalc)
-test2 <- test %>% dplyr::select(-G1, -G2, -Medu, -Dalc)
+train2 <- train %>% dplyr::select(-G1, -G2, -Medu, -Walc)
+test2 <- test %>% dplyr::select(-G1, -G2, -Medu, -Walc)
 train3 <- train2
 train3$school <- factor(train3$school, exclude = NULL)
 train3$sex <- factor(train3$sex, exclude = NULL)
@@ -168,23 +174,23 @@ Correlation between Mjob / Fjob factors is not as strong as we expected - we don
 We can now move on to fitting a model with all of our predictor variables.
 
 ```{r}
-model3 <- lm(G3 ~ ., data=train3)
+model3 <- lm(G3 ~ . + romanticno:studytime + activitiesno:studytime + higherno:absences, data=train3)
 summary(model3)
 ```
 
 ## Variable Selection
 
-Now that we have fitted the full model with all of our predictors, we want to try backwards selection to reduce the model so it only has statistically significant predictors. We will use AIC (Akaike information criterion) as our metric to evaluate this to maximize predictive power.
+Now that we have fitted the full model with all of our predictors and 3 interaction terms between categorical and numeric variables we though might have a different association with the response at different levels, we want to try backwards selection to reduce the model so it only has statistically significant predictors. We will use AIC (Akaike information criterion) as our metric to evaluate this to maximize predictive power.
 
 ```{r, warning=FALSE}
 backward <- stepAIC(model3, direction='backward', trace=0)
 summary(backward)
 ```
-The only variable that was dropped by the backward selection algorithm was reasonreputation. It's large p-value in the full model indicated that it was not a statistically significant predictor. 
+The only variables that were dropped by the backward selection algorithm was reasonreputation, romanticno:studytime, and activitiesno:studytime. Their large p-value in the full model indicated that they were not statistically significant predictor. 
 
 ## Interaction effects
 
-We have decided not to use interaction terms for the following reasons: Firstly, it is not clear that the numeric variables will have a different association with the response at different levels of the categorical factors, for example, why the same amount of studytime would have a different association with the response based on whether or not the subject is in a romantic relationship, etc. Additionally, we already have a large amount of terms in our model, some of them with relatively high p-values (for example, goout). So it is not clear that interaction terms involving these predictors will be statistically significant.
+We have decided to use interaction terms for the following reasons: Firstly, it is clear that the numeric variables will have a different association with the response at different levels of the categorical factors, for example, why the same amount of absences would have a different association with the response based on whether or not the subject wanted to pursue higher education, etc. Seeing as how the backward selection algorithm has preserved this term, we believe this validates our intuition as to the significance of the interaction.
 
 ## Computation Model
 
@@ -220,7 +226,7 @@ data.frame(
 )
 ```
 
-To evaluate the performance of our 2 models, we chose the metrics $R^2$, RMSE (Root Mean Squared Error), and MAE (Mean Absolute Error). $R^2$ is a measure of goodness of fit, whereas RMSE and MAE are measures of total error. In all 3 metrics, the extended model including the interaction term performed nearly identically to the model without the interaction term. This indicates that including an interaction term between the numeric and categorical variables in our dataset may not have a large effect on model fit in some cases.
+To evaluate the performance of our 2 models, we chose the metrics $R^2$, RMSE (Root Mean Squared Error), and MAE (Mean Absolute Error). $R^2$ is a measure of goodness of fit, whereas RMSE and MAE are measures of total error. After validating our models on the testing set, in all 3 metrics, the extended model including the interaction term performed nearly identically to the model without the interaction term. This indicates that including an interaction term between the numeric and categorical variables in our dataset may not have a large effect on model fit in some cases.
 
 ## Statistical model
 
@@ -234,7 +240,7 @@ plot(fitted(backward), res)
 In the visual above we can see that variance is not constant so we try this procedure again, this time we transform the response variable by taking the square root of G3.
 
 ```{r, echo=TRUE, results='hide'}
-model4 <- lm(sqrt(G3) ~ ., data=(train3))
+model4 <- lm(sqrt(G3) ~ . + romanticno:studytime + activitiesno:studytime + higherno:absences, data=(train3))
 summary(model4)
 backward2 <- stepAIC(model4, direction='backward', trace=0)
 summary(backward2)
@@ -246,7 +252,20 @@ This time more predictors are dropped by the backward selection algorithm, goout
 res2 <- resid(backward2)
 plot(fitted(backward2), res2)
 ```
-However, the residuals vs fit plot still suggests the linearity and variance assumptions are violated. For curiosity, lets plot the residuals vs fit graph for our previously fitted smaller-sized model. 
+However, the residuals vs fit plot still suggests the linearity and variance assumptions are violated.
+
+```{r}
+train4 <- train3
+train4$G3[train4$G3 == 0] <- 1e-50
+model5 <- lm(log(G3) ~ ., data=train4)
+backward3 <- stepAIC(model5, direction='backward', trace=0)
+```
+
+```{r}
+res3 <- resid(backward3)
+plot(fitted(backward3), res3)
+```
+A log transformation on the response also yields an unsatisfactory result. Let's plot the residuals vs fit graph for our previously fitted smaller-sized model. 
 
 ```{r, echo=FALSE}
 res2 <- resid(new_model2)
@@ -279,14 +298,14 @@ coef_p_values <- summary(new_model2)$coefficients[, "Pr(>|t|)"]
 alpha <- 0.05
 
 # Apply Bonferroni correction
-adjusted_alpha <- alpha / length(coef_p_values)
-
-# Perform the significance test for each coefficient
-significant_coeffs <- coef_p_values < adjusted_alpha
+adjusted_alpha <- alpha / length(train3$G3)
 
 # Print the results
 for (i in 1:length(coef_p_values)) {
-  if (significant_coeffs[i]) {
+  # Calculate the t-value and p-value
+  t_result <- t.test(train3$G3, alternative = "two.sided", mu = 0)
+  
+  if (t_result[i]$p.value < adjusted_alpha) {
     print(paste("Coefficient", names(coef_p_values)[i], "is significant."))
   } else {
     print(paste("Coefficient", names(coef_p_values)[i], "is not significant."))
@@ -294,7 +313,58 @@ for (i in 1:length(coef_p_values)) {
 }
 
 ```
-Even after applying the Bonferroni correction to control for the family-wise error rate, we see that all the coefficents on our model are statistically significant.
+
+
+```{r}
+# Obtain the coefficients
+coefficients <- coef(new_model2)
+
+# Define the desired significance level (e.g., 0.05)
+alpha <- 0.05
+
+# Apply Bonferroni correction
+adjusted_alpha <- alpha / length(train3$G3)
+
+# Perform the t-test for each coefficient
+for (i in 1:(length(coefficients)-1)) {
+  # Calculate the t-value and p-value
+  beta_hat_i <- coef(new_model2)[names(coefficients)[i]]
+  sigmasqhat <- summary(new_model2)$sigma^2
+  x_mx <- model.matrix(new_model2)
+  xtx_inv <- solve(t(x_mx) %*% x_mx)
+  se_beta_hat_i <- sqrt(sigmasqhat * xtx_inv[i, i])
+  test_stat <- beta_hat_i / se_beta_hat_i
+  pval <- 2*(1-pt(abs(test_stat), df = new_model2$df.residual))
+  # Check if the p-value is less than the significance level
+  if (pval < adjusted_alpha) {
+    print(paste("Coefficient", names(coefficients)[i], "is significant."))
+  } else {
+    print(paste("Coefficient", names(coefficients)[i], "is not significant."))
+  }
+}
+
+beta_hat_5 <- coef(new_model2)['age:romanticno']
+sigmasqhat <- summary(new_model2)$sigma^2
+x_mx <- model.matrix(new_model2)
+xtx_inv <- solve(t(x_mx) %*% x_mx)
+se_beta_hat_5 <- sqrt(sigmasqhat * xtx_inv[5, 5])
+test_stat <- beta_hat_5 / se_beta_hat_5
+pval <- 2*(1-pt(abs(test_stat), df = new_model2$df.residual))
+if (pval < adjusted_alpha){
+  print("Coefficient age:romanticno is significant.")
+  } else {
+    print("Coefficient age:romanticno is not significant.")
+}
+```
+
+
+
+Even after applying the Bonferroni correction to control for the family-wise error rate, we see that only age and studytime remain significant.
+
+```{r}
+new_model2 <- lm(G3 ~ age + studytime, data=train3)
+```
+
 
 ## Goodness of Fit
 
@@ -356,11 +426,11 @@ high_leverage
 ```
 
 ```{r}
-b <- seq(1, 47)
+b <- seq(1, 80)
 unusual_obs <- broom::augment(new_model2, train3) %>% 
   pivot_longer(cols = c(.resid, .hat, .cooksd)) %>%
   group_by(name) %>%
-  slice_max(order_by = abs(value), n = 10) %>%
+  slice_max(order_by = abs(value), n = 3) %>%
   ungroup()
 p_caseinf + geom_point(data = unusual_obs, color = 'red', aes(x=b, y=value))
 ```
@@ -388,36 +458,10 @@ train4 <- train3[-c(1596),]
 ```
 
 ```{r}
-new_model3 <- lm(G3 ~ studytime + age + romanticno + age:romanticno, data=train4)
+new_model3 <- lm(G3 ~ studytime + age, data=train4)
 summary(new_model3)
 ```
-
-```{r, echo=FALSE}
-# Obtain the coefficient p-values
-coef_p_values <- summary(new_model3)$coefficients[, "Pr(>|t|)"]
-
-# Define the desired significance level (e.g., 0.05)
-alpha <- 0.05
-
-# Apply Bonferroni correction
-adjusted_alpha <- alpha / length(coef_p_values)
-
-# Perform the significance test for each coefficient
-significant_coeffs <- coef_p_values < adjusted_alpha
-
-# Print the results
-for (i in 1:length(coef_p_values)) {
-  if (significant_coeffs[i]) {
-    print(paste("Coefficient", names(coef_p_values)[i], "is significant."))
-  } else {
-    print(paste("Coefficient", names(coef_p_values)[i], "is not significant."))
-  }
-}
-```
-
-## Interpretation
-
-It appears that dropping this single observation was enough to change the values of the coefficients on the fitted model, but not enough to shift whether they were statistically significant.
+It appears that none of our coefficients have changed since we dropped the high leverage / high residual observation from our training set.
 
 ## Confidence / Prediction Intervals for $\hat{Y}$
 
@@ -429,19 +473,21 @@ as.numeric(tail(names(sort(table(x))), 1))
 ```
 
 ```{r, echo=FALSE}
-x_bar <- c(freq_value(test3$studytime), mean(test3$age), freq_value(test3$romanticno))
-new_data <- data.frame(studytime = x_bar[1], age = x_bar[2], romanticno = x_bar[3])
+x_bar <- c(freq_value(test3$studytime), mean(test3$age))
+new_data <- data.frame(studytime = x_bar[1], age = x_bar[2])
 ```
 
 ```{r, echo=FALSE}
 predict(new_model2, newdata = new_data, interval = 'confidence', level = 0.95)
 ```
-With 95% confidence, the final grade for a student with age equal to the mean and with the most common relationship status (single), and in the most common studytime bracket (2-5 hours) is between 11.85346 and 11.9243.
+With 95% confidence, the final grade for a student with age equal to the mean and with the most common relationship status (single), and in the most common studytime bracket (2-5 hours) is between 11.78082 and 11.83773.
 
 ```{r, echo=FALSE}
-new_data2 <- data.frame(age = 22, studytime = 3, romanticno = 0)
+new_data2 <- data.frame(age = 22, studytime = 4)
 predict(new_model2, newdata = new_data2, interval = 'prediction', level = 0.95)
 ```
-With 95% confidence, the final grade for a student aged 22, in a relationship, and who studies between 5-10 hours a week is between 7.316517 and 15.6258.
+With 95% confidence, the final grade for a student aged 22, in a relationship, and who studies between 5-10 hours a week is between 8.245044 and 16.56138.
 
-## Conclusion
+## Summary
+
+We began our analysis by dropping 2 variables, 'Dalc' and 'Medu', that exhibited a high degree of correlation with the other variables in our dataset. We then encoded all $n$ levels of each categorical variable as $n-1$ separate binary variables. We then used the backward selection algorithm with the Alkaike Information criterion for variable selection. However, the result of this model failed to satisfy the conditions for linear regression, as seen in diagnostic plots. So we instead chose a simpler model with a single interaction term. We confirmed the significance of 2 of the predictors, however, we received low $R^2$ and adjusted $R^2$ and experimented with the effect of dropping a single highly influential observation only to find it failed to affect the significance. 
