@@ -1,6 +1,6 @@
 ---
 title: "126 Final Project Step 3"
-author: "Angel Abdelnour, Andrew Hansen, Sammy Suliman"
+author: "Angel Abdulnour, Andrew Hansen, Sammy Suliman"
 date: "2023-05-09"
 output:
   pdf_document: default
@@ -30,10 +30,10 @@ library(Metrics)
 
 ```{r, echo=FALSE}
 #For Sammy to read the file in
-performance <- read.csv("C:/Users/filto/Desktop/PSTAT_126/project2/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
+#performance <- read.csv("C:/Users/filto/Desktop/PSTAT_126/project2/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
 
 #For Angel to read the file in
-#performance <- read.csv("C:/Users/Angel/OneDrive/Desktop/schoolwork/1. Pstat 126/pstat-126/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
+performance <- read.csv("C:/Users/Angel/OneDrive/Desktop/schoolwork/1. Pstat 126/pstat-126/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
 
 #performance
 

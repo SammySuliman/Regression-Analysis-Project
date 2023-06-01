@@ -29,8 +29,14 @@ library("olsrr")
 
 ```{r, results='hide', echo=FALSE}
 # Used to load data set. In read.csv paste personalized file path
-#performance <- read.csv("C:/Users/Angel/OneDrive/Desktop/schoolwork/1. Pstat 126/pstat-126/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
-performance <- read.csv("C:/Users/filto/Desktop/PSTAT_126/project2/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
+
+#for Angel to load
+performance <- read.csv("C:/Users/Angel/OneDrive/Desktop/schoolwork/1. Pstat 126/pstat-126/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
+
+#for sammy to load
+#performance <- read.csv("C:/Users/filto/Desktop/PSTAT_126/project2/student/student-por.csv", header=TRUE, stringsAsFactors=FALSE, sep=';')
+
+
 performance
 ```
 
@@ -38,7 +44,7 @@ performance
 Review: The UCI student performance dataset has 16 numeric variables. Of those we have the three response variables, G1, G2, and G3, which represent the student's grades in each quarter respectively (for the sake of our project we will be using G3). There are 13 numeric predictor variables and we will be using age (measured in years) as the predictor variable in our simple linear regression model.
 
 
-Our first step is to see if we fall under the assumptions for linear regression. We create the numeric data set and pick out just the age and G3 variables.
+Our first step is to see if we fall under the assumptions for linear regression. We create the numeric data set and pick out just the age and G3 variables. Here we filter through the data set and create "numeric_performance" which contains all the numeric data from the original data frame. Using numeric_performance we create a simple linear model containing age as our predictor and G3 as our response.
 
 ```{r}
 numeric_performance <- performance %>% select_if(is.numeric)
@@ -46,48 +52,50 @@ fit  <- lm(G3 ~ (age), data = numeric_performance)
 summary(fit)
 ```
 Here, to check for linearity, the most important condition for the validity of the linear model, we will check the plot of residuals against fit to see if we should adjust our predictor to enter into the model in a non-linear way.
-```{r}
+```{r, echo=FALSE, out.width = "75%", out.height = "75%", fig.align = 'center'}
 augment(fit, numeric_performance) %>%
   pivot_longer(cols = c(.fitted, age)) %>%
   ggplot(aes(y= .resid, x = value)) +
   facet_wrap(~ name, scales = 'free_x') +
   geom_point() +
   geom_hline(aes(yintercept = 0)) +
-  geom_smooth(method = 'loess', formula = 'y ~ x', se= F, span = 1)
+  geom_smooth(method = 'loess', formula = 'y ~ x', se= F, span = 1) +
+  labs(title = "Residuals vs. Fit", x = "Fit", y = "Residuals", subtitle = "y = B0 + B1 * x") +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 ```
+
 Since we do not see any obvious non-linear patterns in our data (e.g, a quadratic or cubic curve). Furthermore, our smooth line graph displays a rough linear pattern, we see that the linearity assumption is satisfied, and we do not need to reenter our predictor variable into the model non-linearly.
 
-However, once again looking at our residuals versus fit plot that the variance is not constant throughout all values of x. It appears to bulge in the middle for observations with ages 18-20, with less variance for younger and older subjects. To resolve this issue in order to guarantee the confidence intervals we construct obtain full coverage, we will apply a square root transformation to our response variable
+However, once again looking at our residuals versus fit plot that the variance is not constant throughout all values of x. It appears to bulge in the middle for observations with ages 18-20, with less variance for younger and older subjects. To resolve this issue in order to guarantee the confidence intervals we construct obtain full coverage, we will apply a square root transformation to our response variable. Thus we create a new linear model, whose summary is shown below, as well as look at the residuals versus fit plot which is below that.
 
-```{r}
-```
-
-```{r}
+```{r, echo=FALSE}
 numeric_performance <- performance %>% select_if(is.numeric)
 fit2  <- lm(sqrt(G3) ~ (age), data = numeric_performance)
 summary(fit2)
 ```
-```{r}
+```{r, echo=FALSE, out.width = "75%", out.height = "75%", fig.align = 'center'}
 augment(fit2, numeric_performance) %>%
   pivot_longer(cols = c(.fitted, age)) %>%
   ggplot(aes(y= .resid, x = value)) +
   facet_wrap(~ name, scales = 'free_x') +
   geom_point() +
   geom_hline(aes(yintercept = 0)) +
-  geom_smooth(method = 'loess', formula = 'y ~ x', se= F, span = 1)
-```
-Looking at the residuals versus fit plot for our transformed model, we see that the variance of the data is largely even about mean 0, so the homoscedacity assumption is satisfied.
+  geom_smooth(method = 'loess', formula = 'y ~ x', se= F, span = 1)+
+  labs(title = "Residuals vs. Fit", x = "Fit", y = "Residuals", subtitle = "sqrt(y) = B0 + B1 * x") +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 
-```{r}
+```
+
+Looking at the residuals versus fit plot for our transformed model, we see that the variance of the data is largely even about mean 0, so the homoscedacity assumption is satisfied. To further confirm this we create a plot of the transformed response variable against our predictor variable (age).
+
+```{r, echo=FALSE, out.width = "75%", out.height = "75%", fig.align = 'center'}
 avPlots(fit2, id=FALSE, xlab = 'age (yrs)', ylab = 'final grades')
 ```
-A plot of the transformed response variable against our predictor variable (age) confirms the constant variance assumption.
-
 ## Significance Testing on $\beta_1$
 
-So now we will conduct a test for significance for our predictor variable age. Our null hypothesis is that there is no association between age and final grades, i.e, that age is not a statistically significant predictor of final grades. We will set a significance level of 0.05 for this hypothesis test:
+So now we will conduct a test for significance for our predictor variable, age. Our null hypothesis is that there is no association between age and final grades (G3), i.e, that age is not a statistically significant predictor of final grades. We will set a significance level of 0.05 for this hypothesis test:
 
-```{r}
+```{r, echo=FALSE}
 # estimate
 betahat_1 <- coef(fit2)['age']
 sigmasqhat <- summary(fit2)$sigma^2
@@ -103,10 +111,10 @@ pval <- 2*(1 - pt(abs(test_stat), df = fit2$df.residual))
 print(pval)
 ```
 
-Since our p-value is less than 0.05 we reject the null hypothesis that there is no association between age and final grades.
+Above, we can see that our p-value is less than 0.05, meaning we can reject the null hypothesis which claims there is no association between our predictor and response variables, respectively.
 
 The next step to be completed is to provide a 95% confidence interval for the age predictor:
-```{r}
+```{r, echo=FALSE}
 confint(fit2, "age", level = 0.95)
 ```
 An interpretation for this confidence interval is that with 95% confidence, an increase of one year in age is associated with between 0.03 and 0.11 reduction in the square root of final grade.
@@ -115,40 +123,42 @@ An interpretation for this confidence interval is that with 95% confidence, an i
 
 Next, we will examine a confidence interval about the mean of the response (G3):
 
-```{r}
+```{r, echo=FALSE}
 x_bar <- mean(performance$age)
 new_data <- data.frame(age = x_bar)
 ```
 
-```{r}
+```{r, echo=FALSE}
 predict(fit2, newdata = new_data, interval = 'confidence', level = 0.95)
 ```
-```{r}
+Above we have a confidence interval that seems inaccurate, this is because we took the square root of our response variable, this means we will have to adjust our results accordingly.
+```{r, echo=FALSE}
 predict(fit2, newdata = new_data, interval = 'confidence', level = 0.95)[2]^2
 predict(fit2, newdata = new_data, interval = 'confidence', level = 0.95)[3]^2
 ```
 
-With 95% confidence, the mean final grade for a student of mean age (16.74) is between 11.14782 and 11.82244.
+After squaring the results we obtain a new lower and upper bound. With 95% confidence, the mean final grade for a student of mean age (16.74) is between 11.14782 and 11.82244.
 
-Now let's examine what the individual response is for students with the oldest age recorded (22):
 
-```{r}
+After calculating the confidence interval for the response at the mean value of the explanatory variable we became interested in the data concerning our largest age group, students age 22. Following the same procedure as before we construct a confidence interval and then square the results obtained:
+
+```{r, echo=FALSE, results='hide'}
 new_data2 <- data.frame(age = 22)
 predict(fit2, newdata = new_data2, interval = 'prediction', level = 0.95)
 ```
-```{r}
+```{r, echo=FALSE}
 predict(fit2, newdata = new_data2, interval = 'prediction', level = 0.95)[2]^2
 predict(fit2, newdata = new_data2, interval = 'prediction', level = 0.95)[3]^2
 ```
 With 95% confidence, the final score of a student aged 22 is between 2.967351 and 18.4604.
 
 ## Goodness of fit
+From our plot of residuals against fit, we see the points are distributed in a rough even band around zero, and that they appear mostly random, with no obvious nonlinear pattern. This indicates that the model is linear and has constant variance, the 2 most important conditions for a linear regression model to satisfy.
 
-```{r}
+```{r, echo=FALSE}
 summary(fit2)$r.squared
 summary(fit2)$adj.r.squared
 ```
-From our plot of residuals against fit, we see the points are distributed in a rough even band around zero, and that they appear mostly random, with no obvious nonlinear pattern. This indicates that the model is linear and has constant variance, the 2 most important conditions for a linear regression model to satisfy.
 
 To assess the goodness of fit, we look at the $R^2$ value, which is the ratio of the sum of squares of the regression to the total sum of squares, to see how much of the variance is explainable by the regression model, with $R^2 = 1$ indicating that all variance in the data has been fully explained by the model. Our $R^2$ value is only 0.0182, and after adjusting for the number of predictors (in this case, 1), we have an even lower adjusted $R^2$ of 0.0166. This suggests that very little of total variation of the data can be explained by the model, so our model is not a very good fit for the data.
 
