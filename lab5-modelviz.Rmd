@@ -1,0 +1,359 @@
+---
+title: "Model visualizations using predictions"
+author: "PSTAT126"
+date: "Lab 5"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+# default code chunk options
+knitr::opts_chunk$set(echo = T,
+                      results = 'markup',
+                      message = F, 
+                      warning = F,
+                      fig.width = 4,
+                      fig.height = 3,
+                      fig.align = 'center') 
+
+# load packages
+library(faraway)
+library(tidyverse)
+library(modelr)
+```
+
+### Objectives
+
+This lab covers the model visualization technique introduced in lecture in greater depth. Doing so involves learning some slightly more advanced `ggplot` functionality with respect to layering and aesthetics. The following topics are emphasized:
+
++ Generating prediction grids with `data_grid()`
++ Plotting paths with `geom_path()`
++ Adding uncertainty bands with `geom_ribbon()`
++ Back-transformation
+
+The basic idea behind these model visualizations is to plot a path through predictions computed along a sequence of predictor values. In fact, that's what `geom_smooth()` does for you 'under the hood' -- so you've already been doing this without realizing it! 
+
+However, `geom_smooth()` only works in a limited range of settings. To develop more sophisticated graphics, we'll need to understand and then mimic the process. 
+
+The first section covers the basic calculations in the one-predictor setting; the second section extends the idea to the multi-predictor setting. Both sections work with familiar data. You will likely only cover the first section during your lab session; if so, please work through the second section on your own.
+
+## Basics: visualizations with one predictor
+
+This segment works with the `eco` data from `faraway` on 1998 per capita income for each U.S. state and the proportion of residents of each state born in the U.S. as of the 1990 census. By now, this should be a familiar plot:
+```{r}
+p <- ggplot(eco, aes(x = usborn, y = income)) + 
+  geom_point() +
+  labs(x = 'Percentage of state population born in U.S.',
+       y = 'Per capita income in 1998 (USD)')
+
+p + geom_smooth(method = 'lm', formula = 'y ~ poly(x, 3)', se = F)
+```
+We're going to replicate it by explicitly computing the path shown.
+
+### Prediction grids with `data_grid()`
+
+The first step is to generate a sequence of values of `usborn` (the predictor shown on the horizontal axis). `data_grid()` provides a way of doing this flexibly and easily.
+
+The most basic functionality, shown below, assigns the unique values of `usborn` to a column named `usborn`.
+```{r}
+# unique values of usborn
+data_grid(eco, usborn = usborn) %>% head()
+```
+
+Take a moment to verify that the column above contains these values:
+```{r results = 'hide'}
+# equivalent results
+unique(eco$usborn) %>% sort()
+data_grid(eco, usborn = usborn) %>% pull(usborn)
+```
+
+
+It's not strictly necessary, but often helpful to include a model object to ensure that the output of `data_grid()` contains all the columns needed to call `predict()` with the results and the desired model. For us, this will be the model we wish to visualize. Run the cell below to verify that the results are the same as above.
+```{r, results = 'hide'}
+# model to visualize
+fit_eco <- lm(income ~ poly(usborn, 3), data = eco)
+
+# prediction grid
+eco %>% 
+  data_grid(usborn = usborn, 
+            .model = fit_eco) %>%
+  head()
+```
+
+The function `add_predictions()` appends model predictions as a new column to any data frame (with the columns needed to compute the predictions -- hence using the `.model = ...` argument with `data_grid()`):
+```{r}
+# append predictions
+eco %>% 
+  data_grid(usborn = usborn, .model = fit_eco) %>%
+  add_predictions(model = fit_eco) %>%
+  head()
+```
+
+### Plotting paths 
+
+The foregoing data frame is all that's needed to plot a path through the predictions -- values of `usborn` and values of the response. Store it and construct the plot:
+```{r}
+# store prediction grid
+pred_df_eco <- eco %>%
+  data_grid(usborn = usborn, .model = fit_eco) %>%
+  add_predictions(model = fit_eco)
+
+# plot path
+p + geom_path(aes(y = pred), data = pred_df_eco)
+```
+
+#### Your turn
+
+Take a moment to compare the result with `geom_smooth()`. Add a layer to the plot below with the analogous `geom_smooth()` visualization. If need be, you can copy the command from the plot at the very top; but try to do it from scratch if you can.
+(*Hint*: play with the aesthetics `color`, `linetype`, and `alpha` (transparency) and use one or more of them to make it easier to visually distinguish the lines.)
+```{r}
+# compare with geom_smooth()
+p + geom_smooth(method = 'lm', formula = 'y ~ poly(x, 3)', se = F)
+```
+
+Notice how the `geom_path()` layer is a little jagged compared with the `geom_smooth()` layer. That's because for the path, the prediction grid comprises only the unique values *in the data set*; so especially where the data are sparse, one can see the path comprises straight line segments.
+
+This can be improved by generating predictions along an evenly-spaced sequence, rather than for each unique predictor value in the dataset. `seq_range()` will do that in a less verbose way than the usual `seq()`:
+```{r}
+# these are equivalent
+seq_range(eco$usborn, 5)
+seq(from = min(eco$usborn), 
+    to = max(eco$usborn), 
+    length = 5)
+```
+
+To construct a prediction grid using a sequence, simply substitute a call to `seq_range()` for the variable name in the arguments to `data_grid()`:
+```{r}
+# note for the curious: try removing the 'usborn = ' part 
+# and check the column names in the prediction grid
+eco %>%
+  data_grid(usborn = seq_range(usborn, 100), 
+            .model = fit_eco) %>%
+  head()
+```
+
+#### Your turn
+
+Now repeat the process: add predictions, store the result, plot the path, and overlay the `geom_smooth()` layer to compare to your last plot.
+```{r}
+# prediction grid
+
+# path compared with geom_smooth
+
+```
+
+### Adding confidence (or prediction) bands
+
+To visualize uncertainty, one can compute upper and lower confidence (or prediction) limits for each prediction on the grid, and add a shaded area between those bounds to the plot.
+
+As a starting point, the upper and lower limits are needed. These, if you recall, can be computed using `predict.lm()`:
+```{r}
+# compute confidence limits
+predict(fit_eco, 
+        newdata = pred_df_eco, 
+        interval = 'confidence', 
+        level = 0.95) %>% 
+  head()
+```
+So simply binding these three columns to the prediction grid will do the trick:
+```{r}
+# add confidence limits
+pred_df_eco_ci <- pred_df_eco %>%
+  cbind(ci = predict(fit_eco, 
+                     newdata = pred_df_eco, 
+                     interval = 'confidence', 
+                     level = 0.95))
+
+pred_df_eco_ci %>% head()
+```
+Notice that by specifying `ci = ...`, the string `ci` is appended as a prefix to the column names from the output of `predict()` when they are added to the data frame.
+
+Shading the area between the two limits is accomplished by `geom_ribbon()`. This requires some new aesthetics: `ymin = ...` will be the lower limit, and `ymax = ...` will be the upper limit. (Additionally, notice that the fill color and transparency (`alpha`) are adjusted away from the default settings, but *outside* of the `aes()` call.)
+```{r}
+# add uncertainty bands
+p + geom_path(aes(y = pred), 
+              data = pred_df_eco, 
+              color = 'red') +
+  geom_ribbon(aes(ymin = ci.lwr, 
+                  ymax = ci.upr, 
+                  y = ci.fit), 
+              data = pred_df_eco_ci, 
+              fill = 'red', 
+              alpha = 0.3)
+```
+
+And this matches *exactly* the standard error returned with `geom_smooth(..., se = T, ...)`:
+```{r}
+p + geom_path(aes(y = pred), 
+              data = pred_df_eco, 
+              color = 'red') +
+  geom_ribbon(aes(ymin = ci.lwr,
+                  ymax = ci.upr,
+                  y = ci.fit), 
+              data = pred_df_eco_ci, 
+              fill = 'red', 
+              alpha = 0.2) +
+  geom_smooth(method = 'lm', 
+              formula = 'y ~ poly(x, 3)', 
+              se = T, 
+              fill = 'blue', 
+              alpha = 0.2, 
+              linetype = 'dotdash')
+```
+So by default, `geom_smooth()` plots a 95% confidence interval.
+
+#### Your turn
+
+Modify the example above to show 95% *prediction* limits along the path. As a starting point, you'll need to compute prediction intervals along the prediction grid and append those to `pred_df_eco`; if you can, use the prefix `pi` (instead of `ci`).
+
+(If you want a slight challenge, try showing both the prediction and the confidence limits in distinct colors by combining: the base and scatter layers (`p`); the path layer (`geom_path()`) in red; the 95% confidence limits (`geom_ribbon()`) in red; and the 95% prediction limits (`geom_ribbon()`) in blue.)
+```{r}
+# compute prediction limits and append to grid
+
+
+# plot
+
+```
+
+## Advanced model visualizations: going beyond `geom_smooth()`
+
+Why not always just use `geom_smooth()`? Well, it has limitations -- it's great for single-predictor settings, but can't handle multiple variables or transformations especially well. Here we'll look at how to do something similar for both of these settings.
+
+The solution file for Practice 4 proposed the following model for the `leafburn` data:
+```{r}
+# model from hw3
+fit_leafburn <- lm(log(burntime) ~ log(nitrogen) + log(chlorine) + log(potassium), 
+                   data = leafburn)
+```
+
+Our goal will be to visualize the relationship between `burntime` and `nitrogen` on the original scale with uncertainty. We'll start with generating appropriate prediction grids.
+
+### Prediction grids with multiple variables
+
+The `data_grid()` function works more or less the same no matter how many variables one has; if more variables are input to the call, it will generate a grid of all *combinations* of the named variables:
+```{r}
+leafburn %>%
+  data_grid(nitrogen = seq_range(nitrogen, 50),
+            potassium = seq_range(potassium, 5)) %>%
+  head()
+```
+Now the `.model` argument is important, because the output above has no `chlorine` column. So if one tries to add predictions, R will throw an error:
+```{r, error = T}
+leafburn %>%
+  data_grid(nitrogen = seq_range(nitrogen, 50),
+            potassium = seq_range(potassium, 5)) %>%
+  add_predictions(model = fit_leafburn) 
+```
+The problem is that there's no `chlorine` column in the ouptut from `data_grid()`, but the model `fit_leafburn` expects one. Adding the `.model` argument ensures that the output has a chlorine column.
+```{r}
+leafburn %>%
+  data_grid(nitrogen = seq_range(nitrogen, 50),
+            potassium = seq_range(potassium, 5),
+            .model = fit_leafburn) %>%
+  head()
+```
+This grid has a sequence of 50 evenly-spaced values of `nitrogen` spanning the range in the data, repeated for each of 5 evenly-spaced values of `potassium` spanning the range in the data. In other words, all possible combinations of a 50-value sequence in one variable and a 5-value sequence in another. For `chlorine`, the median is repeated.
+
+#### Your turn
+
+i. Construct a prediction grid generated from a sequence of 100 nitrogen values and 3 potassium values. Print the first few rows.
+```{r}
+# solution
+
+```
+
+
+ii. Construct a prediction grid generated from the same sequence as in (i), but fill in the 75th percentile for `chlorine` (instead of the median). (*Hint*: use `quantile(...)` in a similar way to how `seq_range()` is used in the call for `data_grid()`.) Print the first few rows.
+```{r}
+# solution
+leafburn %>%
+  data_grid(nitrogen = seq_range(nitrogen, 100),
+            potassium = seq_range(potassium, 3),
+            chlorine = quantile(chlorine, 0.75),
+            .model = fit_leafburn) %>%
+  head()
+```
+
+Adding predictions works exactly the same as before:
+```{r}
+# store prediction grid
+pred_df_leaf <- leafburn %>%
+  data_grid(nitrogen = seq_range(nitrogen, 50),
+            potassium = seq_range(potassium, 5),
+            .model = fit_leafburn) %>%
+  add_predictions(model = fit_leafburn)
+```
+
+And ditto confidence limits:
+```{r}
+pred_df_leaf_ci <- pred_df_leaf %>%
+  cbind(ci = predict(fit_leafburn,
+                     newdata = pred_df_leaf, 
+                     interval = 'confidence', 
+                     level = 0.9))
+```
+
+
+### Visualizing model structure in multiple variables
+
+The most dense sequence in the prediction grid is in `nitrogen`; so the steps here display this relationship primarily. (If you were more interested in burn time and potassium, it would make more sense to have a dense sequence in potassium and a sparse sequence in nitrogen or chlorine and start with the burntime-potassium scatterplot.) So the steps below superimpose the model structure visualizations on this plot:
+```{r}
+# base scatterplot
+g <- ggplot(leafburn, 
+            aes(x = log(nitrogen), 
+                y = log(burntime))) +
+  geom_point()
+
+g
+```
+
+Plot one line -- the sequence of `nitrogen` values and the predictions -- for each unique value of `potassium`. The basic layering pattern is the same as before, but notice there is a `group = ...` argument to `geom_path()`. Try removing that and see what happens (it was mentioned in lecture).
+```{r}
+# notice the group argument; try without
+g + geom_path(aes(y = pred, 
+                  color = potassium, 
+                  group = potassium), 
+              data = pred_df_leaf_ci)
+```
+
+#### Your turn
+
+Add confidence limits to each line by following the example in the previous section. All the calculations have been done for you -- `pred_df_leaf_ci` contains the upper and lower limits -- and the `geom_ribbon()` layer should look *almost* exactly the same; just add the proper `group` argument.
+```{r}
+# solution
+
+```
+
+### Back-transformation
+
+You may recall that interpretation of model coefficients was tricky because of the log transformations of all variables. Well, visualization on the original scale is easy -- just drop the `log()` functions from the variables in the base scatter layer and exponentiate the predictions!
+```{r}
+# visualization on original scale
+ggplot(leafburn, 
+       aes(x = nitrogen, 
+           y = burntime)) + # note change here - no log
+  geom_point(aes(color = potassium)) +
+  geom_path(aes(y = exp(pred), # note change here - exp
+                color = potassium, 
+                group = potassium), 
+            data = pred_df_leaf_ci) +
+  geom_ribbon(aes(ymin = exp(ci.lwr), # note change here - exp
+                  ymax = exp(ci.upr), # note change here - exp
+                  y = NULL, 
+                  group = potassium, 
+                  fill = potassium), 
+              data = pred_df_leaf_ci, 
+              alpha = 0.2)
+```
+
+#### Your turn
+
+Remember that the plots above show the relationships between burntime and nitrogen for several values of potassium *given that chlorine is fixed at the median value in the dataset*. If the value of chlorine is changed, the relationships will shift. Try this: tinker with the code chunk below and change the value of chlorine to see the effect on the plot.
+```{r}
+# solution
+
+```
+
+## Code appendix
+
+```{r appendix, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```

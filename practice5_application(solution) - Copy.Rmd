@@ -1,0 +1,187 @@
+---
+title: "PSTAT 126 Practice 5 (Application)"
+author: "Saad Mouti"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+# knit options
+knitr::opts_chunk$set(echo = F,
+                      results = 'markup',
+                      fig.width = 4,
+                      fig.height = 3,
+                      fig.align = 'center',
+                      message = F,
+                      warning = F)
+
+# packages
+library(tidyverse)
+library(modelr)
+library(faraway)
+```
+
+## Application
+
+#### A1. Prostate cancer surgery
+
+The `faraway::prostate` dataset contains measurements taken from 97 men with prostate cancer due to receive surgery. The first few rows are shown below.
+```{r}
+prostate %>% head()
+```
+The variable of interest is log-cancer-volume, which reflects the development of prostate cancer in the patient (higher volume indicates later-stage). Prostate-specific antigen is often measured in screening tests to detect prostate cancer. Here you'll explore predicting the cancer development stage based on PSA.
+
+i. Regress log-cancer-volume on age, log-PSA, and log-prostate-weight. Show the model summary only (no codes).
+```{r}
+fit <- lm(lcavol ~ age + lpsa + lweight, data = prostate)
+summary(fit)
+```
+
+ii. Visualize the estimated relationship between log-cancer-volume and log-PSA for each of the 10th, 50th, and 90th percentiles of ages in the data, with the remaining variable set at its median value. Please include 90% confidence bands; show the graphic only (no codes).
+
+```{r}
+# generate grid
+pred_df <- prostate %>%
+  data_grid(lpsa = seq_range(lpsa, 100),
+            age = quantile(age, c(0.1, 0.5, 0.9)),
+            .model = fit) 
+
+# add bands and plot
+pred_df %>%
+  cbind(ci = predict(fit, pred_df, interval = 'confidence', level = 0.9)) %>%
+  ggplot(aes(x = lpsa)) +
+  geom_point(aes(y = lcavol, color = age), 
+             data = prostate) +
+  geom_path(aes(y = ci.fit, group = age)) +
+  geom_ribbon(aes(ymin = ci.lwr, 
+                  ymax = ci.upr, 
+                  y = ci.fit, 
+                  group = age,
+                  fill = age),
+              alpha = 0.2) +
+  guides(color = 'none')
+```
+
+iii. Repeat (ii) but fix the variable not shown in the plot at its 90th percentile rather than at its median. Does the graphic look much different? Show the graphic only (no codes).
+```{r}
+# generate grid
+pred_df <- prostate %>%
+  data_grid(lpsa = seq_range(lpsa, 100),
+            age = quantile(age, c(0.1, 0.5, 0.9)),
+            lweight = quantile(lweight, 0.9),
+            .model = fit) 
+
+# add bands and plot
+pred_df %>%
+  cbind(ci = predict(fit, 
+                     pred_df,
+                     interval = 'confidence', 
+                     level = 0.9)) %>%
+  ggplot(aes(x = lpsa)) +
+  geom_point(aes(y = lcavol, color = age), 
+             data = prostate) +
+  geom_path(aes(y = ci.fit, group = age)) +
+  geom_ribbon(aes(ymin = ci.lwr, 
+                  ymax = ci.upr, 
+                  y = ci.fit, 
+                  group = age,
+                  fill = age),
+              alpha = 0.2) +
+  guides(color = 'none')
+```
+
+The graphic looks indistinguishable from the previous. (The mean and median differ by about 0.03.)
+
+iv. Visualize the estimated relationship between cancer volume and PSA for each of the 10th, 50th, and 90th percentiles of ages in the data and the median value of prostate weight. Please include 90% confidence bands; show the graphic only (no codes).
+
+```{r}
+# generate grid
+pred_df <- prostate %>%
+  data_grid(lpsa = seq_range(lpsa, 100),
+            age = quantile(age, c(0.1, 0.5, 0.9)),
+            .model = fit) 
+
+# add bands and plot
+pred_df %>%
+  cbind(ci = predict(fit, pred_df, interval = 'confidence', level = 0.9)) %>%
+  ggplot(aes(x = exp(lpsa))) +
+  geom_point(aes(y = exp(lcavol), color = age), 
+             data = prostate) +
+  geom_path(aes(y = exp(ci.fit), group = age)) +
+  geom_ribbon(aes(ymin = exp(ci.lwr), 
+                  ymax = exp(ci.upr), 
+                  y = NULL, 
+                  group = age,
+                  fill = age),
+              alpha = 0.2) +
+  guides(color = 'none') +
+  labs(x = 'Prostate specific antigen',
+       y = 'Cancer volume',
+       fill = 'Age')
+```
+
+v. Does it appear that age is associated with much change in cancer volume based on the graphic? Answer in one sentence, and cite a feature of the plot.
+
+Somewhat, though the curves are only far apart only for high levels of PSA where there is less data, and the confidence bands overlap signficantly.
+
+vi. Suppose a 65-year-old patient arrives and measurements reveal he has a log-PSA level of 0.28 and log-prostate-weight 3.62301. Predict his cancer volume on the log scale with appropriate uncertainty quantification. Show the computed prediction but not your codes.
+```{r}
+# solution
+pi_65 <- predict(fit,
+        newdata = data.frame(lpsa = 0.28, 
+                             age = 65, 
+                             lweight = 3.62301),
+        interval = 'prediction',
+        level = 0.95)
+pi_65
+```
+With 95% confidence, the patient's log-cancer-volume is estimated to be between -1.93 and 1.31.
+
+(Verbal interpretations should always be given; the confidence level can be freely chosen here, as it was not specified.)
+
+vii. What would the prediction in (v) be if the patient were 20 instead of 65? Show the computed prediction but not your codes.
+```{r}
+# solution
+pi_20 <- predict(fit,
+        newdata = data.frame(lpsa = 0.28, age = 20, lweight = 3.62301),
+        interval = 'prediction',
+        level = 0.95)
+
+pi_20
+```
+
+viii. Is the prediction for the 20-year-old patient more or less uncertain than the prediction for the 65-year-old patient, and why? Explain in 1-2 sentences.
+
+If the patient were 20 years old, his log-cancer-volume would be estimated to be between -3.14 and 0.64 at 95% confidence. This is lower but also more uncertain; the estimated range spans about 3.78 compared with 3.24 for the 65-year-old. The greater uncertainty arises because the youngest patient in the dataset is 41, so predicting at age 20 is extrapolating far outside the range of observed data.
+
+ix. Estimate the predictive accuracy of the model you fit in (i). Explain your approach in a sentence or two and report estimated predictive accuracy, but do not show your codes.
+```{r}
+# for reproducibility
+set.seed(82621)
+
+# partition data into training and test sets
+prostate_partition <- prostate %>% resample_partition(p = c(train = 0.7, test = 0.3))
+
+# fit to training set
+fit_train <- lm(lcavol ~ age + lpsa + lweight, data = prostate_partition$train)
+
+# compute mse
+mse(model = fit_train, data = prostate_partition$test)
+```
+
+The expected squared prediction error was estimated by holding out 30% of the data as a test set and computing the average squared errors from predictions made on the test set using the model fit to the rest of the data. The estimated expected squared prediction error is 0.63. 
+
+*Comment:* If the square root is taken, this figure can be interpreted much like a standard deviation: it's estimated that predictions will vary around the true log-cancer-volume by about 0.79 units on average.
+
+x. Does it make sense to use this fitted model to predict whether a patient has cancer in the first place? Why or why not? Explain in 1-3 sentences. 
+
+No, because the model is fitted to data on cancer patients only. So this data provides no information about healthy PSA levels.
+
+(One could think of predicting a large negative value for `lcavol` as predicting zero cancer volume, *i.e.*, no cancer. While the model is amenable to this possibility, it shouldn't be done using these estimates, because they were computed from data on only patients with cancer. If data on healthy patients were included, the estimates could change. So the rationale has less to do with this model and more to do with the data it is fit to.)
+
+\newpage
+## Code appendix
+
+```{r appendix, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```

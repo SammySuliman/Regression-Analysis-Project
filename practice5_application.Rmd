@@ -1,0 +1,151 @@
+---
+title: "PSTAT 126 Practice 5 (Application)"
+author: "Saad Mouti"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+# knit options
+knitr::opts_chunk$set(echo = F,
+                      results = 'markup',
+                      fig.width = 4,
+                      fig.height = 3,
+                      fig.align = 'center',
+                      message = F,
+                      warning = F)
+
+# packages
+library(tidyverse)
+library(modelr)
+library(faraway)
+```
+
+## Application
+
+This part comprises questions that involve writing R codes. Please write your codes and answers in the locations indicated and be sure to follow the instructions regarding whether to show codes and output.
+
+#### A1. Prostate cancer surgery
+
+The `faraway::prostate` dataset contains measurements taken from 97 men with prostate cancer due to receive surgery. The first few rows are shown below.
+```{r}
+prostate %>% head()
+```
+The variable of interest is log-cancer-volume, which reflects the development of prostate cancer in the patient (higher volume indicates later-stage). Prostate-specific antigen is often measured in screening tests to detect prostate cancer. Here you'll explore predicting the cancer development stage based on PSA.
+
+i. Regress log-cancer-volume on age, log-PSA, and log-prostate-weight. Show the model summary only (no codes).
+```{r, echo=FALSE}
+# fit model and show summary
+cancer_model <- lm(lcavol ~ age + lpsa + lweight, data=prostate)
+summary(cancer_model)
+```
+
+ii. Visualize the estimated relationship between log-cancer-volume and log-PSA for each of the 10th, 50th, and 90th percentiles of ages in the data, with the remaining variable set at its median value. Please include 90% confidence bands; show the graphic only (no codes).
+
+```{r}
+# construct prediction grid for visualization
+pred_df <- data_grid(data = prostate, lpsa = seq_range(lpsa, 10), age = quantile(age, c(0.1, 0.5, 0.9)), .model = cancer_model)
+
+pred_df <- pred_df %>%
+  add_predictions(model = cancer_model)
+
+pred_df <- pred_df %>% cbind(ci = predict(cancer_model, pred_df, interval = 'confidence', level = 0.9))
+
+# construct graphic
+
+ggplot(pred_df, aes(x = lpsa, group = age)) + # base layer
+geom_point(aes(y = lcavol, color = age), data = prostate) + # add scatter layer
+geom_path(aes(y = ci.fit, group = age)) + 
+geom_ribbon(aes(ymin = ci.lwr, ymax = ci.upr, group = age, fill = age), alpha = 0.2)
+```
+
+
+iii. Repeat (ii) but fix the variable not shown in the plot at its 90th percentile rather than its median. Does the graphic look much different? Show the graphic only (no codes).
+```{r}
+# construct prediction grid for visualization
+pred_df <- data_grid(data = prostate, lpsa = seq_range(lpsa, 10), age = quantile(age, c(0.1, 0.5, 0.9)), lweight = quantile(lweight, probs = 0.9), .model = cancer_model)
+
+pred_df <- pred_df %>%
+  add_predictions(model = cancer_model)
+
+pred_df <- pred_df %>% cbind(ci = predict(cancer_model, pred_df, interval = 'confidence', level = 0.9))
+# construct graphic
+
+ggplot(pred_df, aes(x = lpsa, group = age)) + # base layer
+geom_point(aes(y = lcavol, color = age), data = prostate) + # add scatter layer
+geom_path(aes(y = ci.fit, color = age)) + 
+geom_ribbon(aes(ymin = ci.lwr, ymax = ci.upr, fill = age), alpha = 0.2)
+```
+
+iv. Visualize the estimated relationship between cancer volume and PSA for each of the 10th, 50th, and 90th percentiles of ages in the data and the median value of prostate weight. Please include 90% confidence bands; show the graphic only (no codes).
+```{r}
+# construct prediction grid for visualization
+
+prostate2 <- prostate %>% cbind(psa = exp(prostate$lpsa), weight = exp(prostate$lweight), cavol = exp(prostate$lcavol))
+prostate2 <- select(prostate2, -lpsa, -lweight, -lcavol)
+
+cancer_model2 <- lm(cavol ~ age + psa + weight, data=prostate2)
+
+pred_df2 <- data_grid(data = prostate2, psa = seq_range(psa, 10), age = quantile(age, c(0.1, 0.5, 0.9)), .model = cancer_model2)
+
+pred_df2 <- pred_df2 %>%
+  add_predictions(model = cancer_model2)
+
+pred_df2 <- pred_df2 %>% cbind(ci = predict(cancer_model2, pred_df2, interval = 'confidence', level = 0.9))
+pred_df %>% head(4)
+# construct graphic
+
+ggplot(pred_df2, aes(x = psa, group = age)) + # base layer
+geom_point(aes(y = cavol, color = age), data = prostate2) + # add scatter layer
+geom_path(aes(y = ci.fit, color = age)) + 
+geom_ribbon(aes(ymin = ci.lwr, ymax = ci.upr, fill = age), alpha = 0.2)
+```
+
+v. Does it appear that age is associated with much change in cancer volume based on the graphic? Answer in one sentence, and cite a feature of the plot.
+
+*Type your answer here (replacing this text)*
+
+vi. Suppose a 65-year-old patient arrives and measurements reveal he has a log-PSA level of 0.28 and log-prostate-weight 3.62301. Predict his cancer volume on the log scale with appropriate uncertainty quantification. Show the results, but don't show your codes.
+```{r}
+mean(prostate$age)
+# compute prediction
+x_patient <- c(lpsa = 0.28, lweight = 3.62301, age = 65)
+x_patient <- data.frame(lapply(x_patient, function(x) t(data.frame(x))))
+predict(cancer_model, newdata = x_patient, interval = 'prediction', level = 0.95)
+```
+
+vii. What would the prediction in (v) be if the patient were 20 instead of 65? Show the computed prediction but not your codes.
+```{r}
+# compute prediction
+x_patient <- c(lpsa = 0.28, lweight = 3.62301, age = 20)
+x_patient <- data.frame(lapply(x_patient, function(x) t(data.frame(x))))
+predict(cancer_model, newdata = x_patient, interval = 'prediction', level = 0.95)
+```
+
+viii. Is the prediction for the 20-year-old patient more or less uncertain than the prediction for the 65-year-old patient, and why? Explain in 1-2 sentences.
+
+The prediction for the 20 year old contains ore uncertainty because 65 is very close to the mean, and we know predictions for the mean value have variance coming from the $\hat{y_i}$ only, whereas point predictions for specific $y_{i+1}$ have variance coming the $y_i$ as well. 
+
+ix. Estimate the predictive accuracy of the model you fit in (i). Explain your approach in a sentence or two and report estimated predictive accuracy, but do not show your codes.
+```{r}
+# estimate predictive accuracy
+mean(cancer_model$residuals^2)
+```
+Since we have a MSE relatively close to zero, our model has a high predictive accuracy.
+
+x. Does it make sense to use this fitted model to predict whether a patient has cancer in the first place? Why or why not? Explain in 1-3 sentences. 
+
+*Type your answer here (replacing this text)*
+
+## Submission instructions
+
+1. Clear your environment and run all codes to check for errors. Resolve any if detected.
+2. Input your name in the author information, remove the instructions at the beginning and end of the document, and knit to pdf. 
+3. Inspect the pdf and fix any display issues. 
+4. Once the pdf looks good, upload a copy to Gradescope.
+5. Save a backup copy of your work in a recoverable location.
+
+\newpage
+## Code appendix
+
+```{r appendix, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```

@@ -1,0 +1,158 @@
+---
+title: "PSTAT 126 Practice 4 (Application)"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+# knit options
+knitr::opts_chunk$set(echo = F,
+                      results = 'markup',
+                      fig.width = 4,
+                      fig.height = 3,
+                      fig.align = 'center',
+                      message = F,
+                      warning = F)
+
+# packages
+library(tidyverse)
+library(modelr)
+library(gridExtra)
+library(faraway)
+```
+
+## Application
+
+This part comprises questions that involve writing R codes.
+
+#### A1. Quadratic in expenditure?
+
+In lecture, a model was proposed for the state average total SAT scores that was quadratic in the percentage of test takers and linear in the expenditure per student. This proposal was based on the two exploratory graphics shown below: first a functional form was proposed for `takers` based on a simple scatterplot (left panel); then the residuals from fitting a model with the proposed functional form in `takers` only were plotted against `expend` (right panel). The proposed functional forms are shown in blue in each panel.
+
+```{r, fig.width = 6, fig.height = 3}
+# plot total sat against takers
+p1 <- ggplot(sat, aes(x = takers, y = total)) + 
+  geom_point() +
+  labs(x = 'Percentage of test takers',
+       y = 'Total SAT score')
+
+# fit the model for takers
+fit_takers <- lm(total ~ poly(takers, 2), data = sat)
+
+# plot residuals against expenditure
+p2 <- add_residuals(data = sat, 
+                    model = fit_takers, 
+                    var = 'resid') %>%
+  ggplot(aes(x = expend, y = resid)) + 
+  geom_point() +
+  labs(x = 'Expenditure per student',
+       y = 'Residual SAT score')
+
+grid.arrange(p1 + geom_smooth(method = 'lm', formula = 'y ~ poly(x, 2)', se = F),
+             p2 + geom_smooth(method = 'lm', formula = 'y ~ x', se = F),
+             nrow = 1)
+```
+
+i. What would a quadratic relationship between the residuals and expenditure look like? Modify the right panel to show a quadratic relationship in blue. Show only the plot (not codes).
+
+```{r, echo=FALSE, results='markup'}
+# solution
+fit_takers <- lm(total ~ poly(takers, 2), data = sat)
+
+# plot residuals against expenditure
+p2 <- add_residuals(data = sat, 
+                    model = fit_takers, 
+                    var = 'resid') %>%
+  ggplot(aes(x = expend, y = resid)) + 
+  geom_point() +
+  labs(x = 'Expenditure per student',
+       y = 'Residual SAT score')
+
+grid.arrange(p2 + geom_smooth(method = 'lm', formula = 'y ~ poly(x,2)', se = F), nrow = 1)
+
+```
+
+ii. Fit the quadratic model and show the fit summary only (no codes).
+
+```{r}
+# solution
+fit_expenditures <- lm(total ~ takers + poly(expend, 2), data = sat)
+summary(fit_expenditures)
+```
+
+iii. Test the hypothesis that the relationship between total SAT score and expenditure after correcting for takers is linear against the alternative that the relationship is quadratic. Write the null and alternative hypotheses, test statistic and null distribution, and $p$-value. 
+
+Total score = $\beta_0$ + $\beta_1$takers + $\beta_2$expenditures
+Total score = $\beta_0$ + $\beta_1$takers + $\beta_2$expenditures + $\beta_3$expenditures$^2$ + $\epsilon_i$
+
+$H_0: \beta_3 = 0$
+$H_A: \beta_3 \neq 0$
+
+$t_0$: -0.189
+$p-$value: 0.85109
+
+
+iv. Interpret the result of the test in context.
+
+Since we have $p-$value greater than our chosen significance level of $\alpha = 0.05$, we fail to reject the null hypothesis that the relationship between total SAT score and expenditure after correcting for takers is linear.
+
+#### A2. Burning time of tobacco leaves
+
+The `leafburn` dataset contains measurements of the burning time in seconds of samples of 30 tobacco leaves along with the weight percentage of nitrogen, chlorine, and potassium.
+```{r}
+head(leafburn)
+```
+
+i. Make scatterplots of `burntime` against each other variable. Show the plots only without any codes.
+
+```{r, results='markup', echo=FALSE}
+p1 <- ggplot(leafburn, aes(x = nitrogen, y = burntime)) + 
+  geom_point() +
+  labs(x = 'Nitrogen percentage',
+       y = 'Burntime (s)')
+p2 <- ggplot(leafburn, aes(x = chlorine, y = burntime)) + 
+  geom_point() +
+  labs(x = 'Chlorine percentage',
+       y = 'Burntime (s)')
+p3 <- ggplot(leafburn, aes(x = potassium, y = burntime)) + 
+  geom_point() +
+  labs(x = 'Potassium percentage',
+       y = 'Burntime (s)')
+
+grid.arrange(p1, p2, p3, nrow=2, ncol=2)
+```
+
+
+ii. Based on the scatterplots, propose a linear model that includes at least one term in each predictor. If no obvious pattern appears in the scatterplot for a given predictor, simply include it linearly in the model. Write the model in the usual notation and briefly explain your rationale for the choice of model (at most one sentence per predictor).
+
+Burntime$_i = \beta_0 + \beta_1$nitrogen$_i$ + $\beta_2$chlorine$_i$ + $\beta_3$chlorine$_i^2$ + $\beta_4$potassium$_i + \epsilon_i$
+
+Percentage of nitrogen appears to have a negative linear relationship with burntime. Percentage of chlorine appears to have a negative quadratic relationship with burntime. Percentage of potassium appears to have no discernible relationship with burntime.
+
+iii. Fit the model you proposed in (ii) and print the fit summary. Show the output only without any codes.
+
+```{r, results='markup', echo=FALSE}
+burn_fit <- lm(burntime ~ nitrogen + poly(chlorine, 2) + potassium, data = leafburn)
+summary(burn_fit)
+```
+
+
+iv. How much variation in burn time is accounted for by the model you fit?
+
+Just over half the total variation in burn time is accounted for by the model ($R^2 = 0.5906$)
+
+v. Is nitrogen content a significant predictor of burn time?
+
+Since the p-value associated with the hypothesis test $H_0: \beta_1 = 0, H_A: \beta_1 \neq 0$ is less than significance level 0.05, we reject the null (nitrogen content IS a significant predictor of burn time)
+
+vii. Describe in context the estimated association between burn time and nitrogen content.
+
+There is a negative linear relationship between nitrogen content and burn time (estimated coefficient of -9.024 on nitrogen$_i$ term).
+
+
+\newpage
+## Code appendix
+
+```{r appendix, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```

@@ -1,0 +1,186 @@
+---
+title: "PSTAT 126 Practice 4 (Application)"
+author: "Solutions"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+# knit options
+knitr::opts_chunk$set(echo = F,
+                      results = 'markup',
+                      fig.width = 4,
+                      fig.height = 3,
+                      fig.align = 'center',
+                      message = F,
+                      warning = F)
+
+# packages
+library(tidyverse)
+library(modelr)
+library(gridExtra)
+library(faraway)
+```
+
+## Application
+
+This part comprises questions that involve writing R codes. Please write your codes and answers in the locations indicated and be sure to follow the instructions regarding whether to show codes and output.
+
+#### A1. Quadratic in expenditure?
+
+In lecture, a model was proposed for the state average total SAT scores that was quadratic in the percentage of test takers and linear in the expenditure per student. This proposal was based on the two exploratory graphics shown below: first a functional form was proposed for `takers` based on a simple scatterplot (left panel); then the residuals from fitting a model with the proposed functional form in `takers` only were plotted against `expend` (right panel). The proposed functional forms are shown in blue in each panel.
+
+```{r, fig.width = 6, fig.height = 3}
+# plot total sat against takers
+p1 <- ggplot(sat, aes(x = takers, y = total)) + 
+  geom_point() +
+  labs(x = 'Percentage of test takers',
+       y = 'Total SAT score')
+
+# fit the model for takers
+fit_takers <- lm(total ~ poly(takers, raw = T, 2), data = sat)
+
+# plot residuals against expenditure
+p2 <- add_residuals(data = sat, 
+                    model = fit_takers, 
+                    var = 'resid') %>%
+  ggplot(aes(x = expend, y = resid)) + 
+  geom_point() +
+  labs(x = 'Expenditure per student',
+       y = 'Residual SAT score')
+
+grid.arrange(p1 + geom_smooth(method = 'lm', formula = 'y ~ poly(x, 2)', se = F),
+             p2 + geom_smooth(method = 'lm', formula = 'y ~ x', se = F),
+             nrow = 1)
+```
+
+i. What would a quadratic relationship between the residuals and expenditure look like? Modify the right panel to show a quadratic relationship in blue. Show only the plot (not codes).
+
+```{r}
+p2 + geom_smooth(method = 'lm', formula = 'y ~ poly(x, 2)', se = F)
+```
+
+ii. Fit the quadratic model and show the fit summary only (no codes).
+
+```{r}
+lm(total ~ takers + I(takers^2) + expend + I(expend^2), data = sat) %>% summary()
+```
+
+iii. Test the hypothesis that the relationship between total SAT score and expenditure after correcting for takers is linear against the alternative that the relationship is quadratic. Write the null and alternative hypotheses, test statistic and null distribution, and $p$-value. 
+
+- The hypotheses are $H_0: \beta_4 = 0$ against $H_a: \beta_4 \neq 0$
+- The test statistic is 2.027, and its null distribution is $t_{45}$
+- The $p$-value is 0.1035
+
+iv. Interpret the result of the test in context.
+
+The data provide insufficient evidence that mean total SAT score is quadratic in expenditure per student after accounting for takers. 
+
+\newpage
+#### A2. Burning time of tobacco leaves
+
+The `leafburn` dataset contains measurements of the burning time in seconds of samples of 30 tobacco leaves along with the weight percentage of nitrogen, chlorine, and potassium.
+```{r}
+head(leafburn)
+```
+
+i. Make scatterplots of `burntime` against each other variable. Show the plots only without any codes.
+
+```{r, fig.width = 6, fig.height = 2.5}
+leafburn %>%
+  pivot_longer(cols = -burntime, names_to = 'chemical', values_to = 'content') %>%
+  ggplot(aes(x = content, y = burntime)) +
+  facet_wrap(~ chemical, scales = 'free_x') +
+  geom_point() +
+  labs(y = 'Burn time (sec)',
+       x = 'Content (% weight)')
+```
+
+(See codes for faceting. Separate plots are fine.)
+
+ii. Based on the scatterplots, propose a linear model that includes at least one term in each predictor. If no obvious pattern appears in the scatterplot for a given predictor, simply include it linearly in the model. Write the model in the usual notation and briefly explain your rationale for the choice of model (at most one sentence per predictor).
+
+This is open-ended, but models shouldn't be too complicated. One choice I like is based on tinkering with the plot and trying log transformations of all variables:
+```{r, fig.height = 2.5, fig.width = 6}
+leafburn %>%
+  pivot_longer(cols = -burntime, names_to = 'chemical', values_to = 'content') %>%
+  ggplot(aes(x = log(content), y = log(burntime))) +
+  facet_wrap(~ chemical, scales = 'free_x') +
+  geom_point() +
+  labs(y = 'log(Burn time)',
+       x = 'log(Content)')
+```
+
+The scatter in all panels looks like it wouldn't be too poorly approximated by a straight line. (This is known as a ['power law' relationship](https://en.wikipedia.org/wiki/Power_law).) Here the model would be:
+$$\log(\text{burntime}_i) = \beta_0 + \beta_1
+\log(\text{chlorine}_i) + \beta_2\log(\text{nitrogen}_i) + \beta_3 \log(\text{potassium}_i) + \epsilon_i$$
+
+If the *untransformed* `burntime` is used as the response, there's not much pattern with potassium, so that should enter linearly; I would argue the same for chlorine, but could see a reasonable case for a decreasing curvature; nitrogen could be linear or possibly quadratic. Linear in all three terms would also be an okay choice.
+
+iii. Fit the model you proposed in (ii) and print the fit summary. Show the output only without any codes.
+
+```{r}
+# solution
+fit_leafburn <- lm(log(burntime) ~ log(nitrogen) + log(chlorine) + log(potassium), data = leafburn)
+summary(fit_leafburn)
+```
+
+iv. How much variation in burn time is accounted for by the model you fit?
+
+82.54% of variation in (log) burn time is accounted for by the model. 
+
+(*Comment*: Adjusted $R^2$ doesn't have the same interpretation because of the scaling.)
+
+v. Is nitrogen content a significant predictor of burn time?
+
+Yes: the $p$-value for the partial significance test on the coefficient for (log) nitrogen is very small ($6.83\times 10^{-8}$); so the data provide strong evidence that (log) nitrogen is a significant predictor of (log) burn time.
+
+(*Comment*: the test here depends on the model that was fit and may not be one of the partial significance tests.)
+
+vi. Describe in context the estimated association between burn time and nitrogen content.
+
+Because of the transformations, interpretation of the estimate is a little complicated. It would be correct to compute and interpret the 'raw' confidence interval:
+
+```{r, echo = T}
+# raw ci -- interpret on transformed scales
+ci_raw <- confint(fit_leafburn, 'log(nitrogen)', level = 0.95)
+ci_raw
+```
+
+And interpret: **with 95% confidence, an increase of one unit in the log of nitrogen content by weight is associated with an estimated decrease in mean log burn time of between 2.8 and 5.0 units after adjusting for chlorine and nitrogen content.**
+
+(*Comment*: this answer also depends on the model that was fit, but should in effect provide an interpretation of the coefficient(s) on the nitrogen term(s).)
+
+
+\newpage
+**Alternate answer for (vi).** It's possible to interpret the association on the scale of the original (untransformed) variables with a little work. This is a little tricky, but based on three facts.
+
+1. If $\mathbb{E}\log(y) = \beta\log(x) + c$ and $x$ is doubled, the change in $\mathbb{E}\log(y)$ is 
+$$\underbrace{\left(\beta\log(2x) + c\right)}_{\text{after doubling}} - \underbrace{\left(\beta\log(x) + c\right)}_{\text{before doubling}} = \beta\left(\log(2) + \log(x)\right) - \beta\log(x) = \beta\log(2)$$
+
+2. If $\mathbb{E}\log(Y) = \beta_0 + \beta_1 \log(x)$ then:
+$$\exp\left\{\mathbb{E}\log(Y)\right\} = \exp\left\{\beta_0 + \beta_1 \log(x)\right\} = e^{\beta_0}e^{\beta_1\log(x)}$$
+and if $\mathbb{E}\log(Y') = \beta_0 + \beta_1 \log(2x)$ then:
+$$\exp\left\{\mathbb{E}\log(Y')\right\} = \exp\left\{\beta_0 + \beta_1 \log(x) + \beta_1 \log(2)\right\} = e^{\beta_0}e^{\beta_1\log(x)}e^{\beta_1\log(2)} = \exp\left\{\mathbb{E}\log(Y)\right\} \times e^{\beta_1\log(2)}$$
+
+3. If $\log(Y) \sim N(\mu, \sigma^2)$ then $Y$ has what's known as a *lognormal* distribution and
+$$\text{median}(Y) = e^{\mu}$$
+
+The first fact means that if a predictor $x$ is log-transformed, then a doubling of $x$ is associated with a change in mean $\log(Y)$ of $\beta\log(2)$. The second fact means that this translates to a change in *exponentiated* mean $\log(Y)$ by a factor of $e^{\beta\log(2)}$. The third means that a change in exponentiated mean $\log(Y)$ translates to a change in *median* $Y$.
+
+Now, if the interval is back-transformed:
+```{r, echo = T}
+# back-transformed ci -- interpret on original scales
+ci_trans <- log(2)*ci_raw %>% exp()
+
+# reciprocal because the factor change is < 1, so a decrease
+1/ci_trans
+```
+
+One gets the interpretation: **with 95% confidence, every doubling of nitrogen content is associated with an estimated decrease in burn time by a factor between 24.7 and 216.2 after accounting for chlorine and potassium.**
+
+
+\newpage
+## Code appendix
+
+```{r appendix, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```
